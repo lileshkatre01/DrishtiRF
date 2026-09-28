@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #111827;
+  --bg-card: #1a2235;
+  --accent-green: #00ff88;
+  --accent-blue: #00b4ff;
+  --accent-amber: #ffb300;
+  --accent-red: #ff4444;
+  --text-primary: #e2e8f0;
+  --text-muted: #64748b;
+  --border: #1e293b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 14px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Glowing border animation for active states */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 4px var(--accent-green); }
+  50%       { box-shadow: 0 0 16px var(--accent-green), 0 0 32px rgba(0,255,136,0.3); }
+}
+
+.glow-green { animation: glow-pulse 2s ease-in-out infinite; }
+
+@keyframes scanline {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+.scanline::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(transparent, rgba(0,255,136,0.06), transparent);
+  animation: scanline 8s linear infinite;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Progress bar animation */
+@keyframes progress-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.progress-shimmer {
+  background: linear-gradient(90deg, #00ff88 0%, #00b4ff 50%, #00ff88 100%);
+  background-size: 200% 100%;
+  animation: progress-shimmer 1.5s ease-in-out infinite;
+}
+
+/* Tier badge */
+.tier-a { color: #00ff88; border-color: #00ff88; background: rgba(0,255,136,0.1); }
+.tier-b { color: #ffb300; border-color: #ffb300; background: rgba(255,179,0,0.1); }
+.tier-c { color: #ff4444; border-color: #ff4444; background: rgba(255,68,68,0.1); }
+
+/* Drop zone */
+.drop-zone-active {
+  border-color: var(--accent-green) !important;
+  background: rgba(0,255,136,0.04) !important;
+  box-shadow: 0 0 24px rgba(0,255,136,0.15);
+}
