@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 from backend.api.deps import get_db
 from backend.api.schemas import JobOut, JobCreate, StageResultOut, FrameOut
 from backend.core.explain import generate_explanation
+from backend.core.confidence import evaluate_job_confidence
 from backend.core.logging import logger
 from backend.db.models import Capture, Job, StageResult, Frame
 from backend.dsp.ingestion import read_signal_file
@@ -45,7 +46,7 @@ def get_capture_spectrum(capture_id: str, db: Session = Depends(get_db)):
 def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
     """
     Start a new pipeline analysis job for an uploaded signal capture.
-    Executes Spectral Analysis, AMC, Demodulation, Joint Search, and Bitstream Correlation stages sequentially.
+    Executes Spectral Analysis, AMC, Demodulation, Joint Search, Bitstream Correlation, and 3-Tier Confidence Evaluation.
     """
     capture = db.query(Capture).filter(Capture.id == job_in.capture_id).first()
     if not capture:
@@ -81,7 +82,7 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=explanation_spectral
         )
         db.add(stage_spectral)
-        job.progress = 25.0
+        job.progress = 20.0
         job.stage = "AMC"
 
         # 2. AMC Stage
@@ -94,7 +95,7 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=amc_res["explanation"]
         )
         db.add(stage_amc)
-        job.progress = 45.0
+        job.progress = 40.0
         job.stage = "DEMOD"
 
         # 3. DEMOD Stage
@@ -111,7 +112,7 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=explanation_demod
         )
         db.add(stage_demod)
-        job.progress = 65.0
+        job.progress = 60.0
         job.stage = "JOINT_SEARCH"
 
         # 4. JOINT_SEARCH Stage (Core Novelty)
@@ -126,10 +127,10 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=joint_res["explanation"]
         )
         db.add(stage_joint)
-        job.progress = 85.0
+        job.progress = 80.0
         job.stage = "CORRELATION"
 
-        # 5. CORRELATION & FRAMING Stage (Phase 8)
+        # 5. CORRELATION & FRAMING Stage
         decoded_bits = joint_res.get("decoded_bits", [])
         if len(decoded_bits) == 0:
             decoded_bits = raw_bits
@@ -155,6 +156,27 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
                 payload_hex=frame_dict["payload_hex"]
             )
             db.add(frame_obj)
+
+        job.progress = 90.0
+        job.stage = "CONFIDENCE_EVALUATION"
+
+        # 6. CONFIDENCE_EVALUATION Stage (3-Tier Model)
+        confidence_summary = evaluate_job_confidence({
+            "spectral": spectral_res,
+            "amc": amc_res,
+            "demod": demod_res,
+            "joint_search": joint_res,
+            "correlation": corr_res
+        })
+
+        stage_conf = StageResult(
+            job_id=job.id,
+            stage="CONFIDENCE_EVALUATION",
+            json_result=confidence_summary,
+            confidence=confidence_summary["overall_confidence"],
+            explanation=confidence_summary["rationale"]
+        )
+        db.add(stage_conf)
 
         job.progress = 100.0
         job.status = "COMPLETED"

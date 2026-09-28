@@ -82,10 +82,11 @@ def test_job_api_with_joint_search_stage(tmp_path):
     res_resp = client.get(f"/api/jobs/{job_id}/results")
     assert res_resp.status_code == 200
     results_list = res_resp.json()
-    assert len(results_list) == 5
+    assert len(results_list) == 6
     stages = [r["stage"] for r in results_list]
     assert "SPECTRAL" in stages
     assert "AMC" in stages
     assert "DEMOD" in stages
     assert "JOINT_SEARCH" in stages
     assert "CORRELATION" in stages
+    assert "CONFIDENCE_EVALUATION" in stages
