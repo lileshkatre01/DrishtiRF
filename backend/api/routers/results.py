@@ -11,6 +11,7 @@ from backend.dsp.ingestion import read_signal_file
 from backend.dsp.preprocess import preprocess_signal
 from backend.dsp.spectral import analyze_spectrum
 from backend.dsp.amc.fusion import classify_modulation
+from backend.dsp.demod.master_demod import demodulate_signal
 
 router = APIRouter(tags=["Analysis & Results"])
 
@@ -42,7 +43,7 @@ def get_capture_spectrum(capture_id: str, db: Session = Depends(get_db)):
 def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
     """
     Start a new pipeline analysis job for an uploaded signal capture.
-    Executes Spectral Analysis and Automatic Modulation Classification (AMC).
+    Executes Spectral Analysis, AMC, and Demodulation stages sequentially.
     """
     capture = db.query(Capture).filter(Capture.id == job_in.capture_id).first()
     if not capture:
@@ -78,7 +79,7 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=explanation_spectral
         )
         db.add(stage_spectral)
-        job.progress = 40.0
+        job.progress = 30.0
         job.stage = "AMC"
 
         # 2. AMC Stage
@@ -92,6 +93,23 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
         )
         db.add(stage_amc)
         job.progress = 60.0
+        job.stage = "DEMOD"
+
+        # 3. DEMOD Stage
+        mod_type = amc_res.get("modulation", "QPSK")
+        symbol_rate = amc_res.get("symbol_rate_baud", 100e3) or 100e3
+        demod_res = demodulate_signal(clean_iq, mod_type=mod_type, symbol_rate=symbol_rate)
+
+        explanation_demod = f"Demodulated {mod_type} stream into {demod_res['bit_count']} raw encoded bits. Constellation and eye-diagram generated."
+        stage_demod = StageResult(
+            job_id=job.id,
+            stage="DEMOD",
+            json_result=demod_res,
+            confidence=0.95 if demod_res["bit_count"] > 0 else 0.0,
+            explanation=explanation_demod
+        )
+        db.add(stage_demod)
+        job.progress = 80.0
         job.status = "COMPLETED"
         db.commit()
         db.refresh(job)

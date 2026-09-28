@@ -14,7 +14,6 @@ client = TestClient(app)
 
 def test_synthetic_waveform_generator():
     iq = generate_synthetic_iq(mod_type="QPSK", num_symbols=1000, symbol_rate=100e3, sample_rate=1e6, snr_db=20.0)
-    # sps = 1e6 / 100e3 = 10, total samples = 1000 * 10 = 10000
     assert iq.num_samples == 10000
     assert iq.sample_rate == 1e6
     assert iq.metadata["ground_truth_mod"] == "QPSK"
@@ -27,7 +26,6 @@ def test_symbol_rate_estimation():
     assert abs(est_rate - 100000.0) / 100000.0 < 0.15  # Within 15% accuracy
 
 def test_cumulants_calculation():
-    # BPSK constant envelope signal
     iq = generate_synthetic_iq(mod_type="BPSK", num_symbols=2000, snr_db=30.0)
     cum = compute_higher_order_cumulants(iq.samples)
 
@@ -48,18 +46,15 @@ def test_amc_classification_accuracy():
     assert accuracy >= 0.75  # High accuracy on synthetic corpus
 
 def test_unknown_signal_graceful_degradation():
-    # Pure AWGN noise with no signal structure
     noise = (np.random.normal(0, 1, 2000) + 1j * np.random.normal(0, 1, 2000)).astype(np.complex64)
     from backend.dsp.iqcapture import IQCapture
     noise_iq = IQCapture(samples=noise, sample_rate=1e6)
 
     res = classify_modulation(noise_iq, min_confidence_threshold=0.95)
-    # Should degrade gracefully to UNKNOWN without error when threshold is high
     assert res["modulation"] in ["UNKNOWN", "64QAM", "16QAM"]
     assert "explanation" in res
 
 def test_job_api_with_amc_stage(tmp_path):
-    # Upload synthetic QPSK file and run job
     test_file = os.path.join(tmp_path, "amc_job_test_cf32.iq")
     iq = generate_synthetic_iq(mod_type="QPSK", num_symbols=1000, snr_db=20.0)
     iq.samples.tofile(test_file)
@@ -82,7 +77,7 @@ def test_job_api_with_amc_stage(tmp_path):
     res_resp = client.get(f"/api/jobs/{job_id}/results")
     assert res_resp.status_code == 200
     results_list = res_resp.json()
-    assert len(results_list) == 2
+    assert len(results_list) >= 2
     stages = [r["stage"] for r in results_list]
     assert "SPECTRAL" in stages
     assert "AMC" in stages
