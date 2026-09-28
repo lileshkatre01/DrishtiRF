@@ -1,0 +1,91 @@
+import numpy as np
+from backend.dsp.iqcapture import IQCapture
+
+def remove_dc_offset(iq: IQCapture) -> IQCapture:
+    """
+    Remove DC offset independently from In-phase (I) and Quadrature (Q) components.
+    """
+    if iq.num_samples == 0:
+        return iq
+    
+    i_real = np.real(iq.samples) - np.mean(np.real(iq.samples))
+    q_imag = np.imag(iq.samples) - np.mean(np.imag(iq.samples))
+    clean_samples = (i_real + 1j * q_imag).astype(np.complex64)
+    
+    return IQCapture(
+        samples=clean_samples,
+        sample_rate=iq.sample_rate,
+        center_freq=iq.center_freq,
+        source_format=iq.source_format,
+        metadata=iq.metadata.copy()
+    )
+
+def normalize_power(iq: IQCapture, target_power: float = 1.0) -> IQCapture:
+    """
+    Normalize signal amplitude so mean power E[|x|^2] equals target_power (default 1.0).
+    """
+    current_power = iq.mean_power
+    if current_power <= 0.0 or np.isnan(current_power):
+        return iq
+    
+    scale_factor = np.sqrt(target_power / current_power)
+    normalized_samples = (iq.samples * scale_factor).astype(np.complex64)
+    
+    return IQCapture(
+        samples=normalized_samples,
+        sample_rate=iq.sample_rate,
+        center_freq=iq.center_freq,
+        source_format=iq.source_format,
+        metadata=iq.metadata.copy()
+    )
+
+def correct_iq_imbalance(iq: IQCapture) -> IQCapture:
+    """
+    Correct IQ amplitude and phase imbalance using Gram-Schmidt orthogonalization.
+    """
+    if iq.num_samples == 0:
+        return iq
+
+    i_data = np.real(iq.samples)
+    q_data = np.imag(iq.samples)
+
+    # Estimate amplitude imbalance
+    p_i = np.mean(i_data ** 2)
+    p_q = np.mean(q_data ** 2)
+    
+    if p_i <= 0 or p_q <= 0:
+        return iq
+
+    amp_scale = np.sqrt(p_i / p_q)
+    q_scaled = q_data * amp_scale
+
+    # Estimate phase imbalance
+    sin_phi = np.mean(i_data * q_scaled) / p_i
+    if np.abs(sin_phi) >= 1.0:
+        return iq
+
+    cos_phi = np.sqrt(1.0 - sin_phi ** 2)
+    q_corrected = (q_scaled - i_data * sin_phi) / cos_phi
+
+    corrected_samples = (i_data + 1j * q_corrected).astype(np.complex64)
+
+    return IQCapture(
+        samples=corrected_samples,
+        sample_rate=iq.sample_rate,
+        center_freq=iq.center_freq,
+        source_format=iq.source_format,
+        metadata=iq.metadata.copy()
+    )
+
+def preprocess_signal(iq: IQCapture, remove_dc: bool = True, normalize: bool = True, correct_imbalance: bool = True) -> IQCapture:
+    """
+    Full preprocessing pipeline: DC offset removal -> IQ imbalance correction -> Power normalization.
+    """
+    result = iq
+    if remove_dc:
+        result = remove_dc_offset(result)
+    if correct_imbalance:
+        result = correct_iq_imbalance(result)
+    if normalize:
+        result = normalize_power(result)
+    return result
