@@ -12,6 +12,7 @@ from backend.dsp.preprocess import preprocess_signal
 from backend.dsp.spectral import analyze_spectrum
 from backend.dsp.amc.fusion import classify_modulation
 from backend.dsp.demod.master_demod import demodulate_signal
+from backend.dsp.joint_search import search_joint_deinterleave_fec
 
 router = APIRouter(tags=["Analysis & Results"])
 
@@ -43,7 +44,7 @@ def get_capture_spectrum(capture_id: str, db: Session = Depends(get_db)):
 def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
     """
     Start a new pipeline analysis job for an uploaded signal capture.
-    Executes Spectral Analysis, AMC, and Demodulation stages sequentially.
+    Executes Spectral Analysis, AMC, Demodulation, and Joint De-interleaver/FEC search stages sequentially.
     """
     capture = db.query(Capture).filter(Capture.id == job_in.capture_id).first()
     if not capture:
@@ -92,7 +93,7 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=amc_res["explanation"]
         )
         db.add(stage_amc)
-        job.progress = 60.0
+        job.progress = 55.0
         job.stage = "DEMOD"
 
         # 3. DEMOD Stage
@@ -109,7 +110,22 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=explanation_demod
         )
         db.add(stage_demod)
-        job.progress = 80.0
+        job.progress = 75.0
+        job.stage = "JOINT_SEARCH"
+
+        # 4. JOINT_SEARCH Stage (Core Novelty)
+        raw_bits = demod_res.get("bits", [])
+        joint_res = search_joint_deinterleave_fec(raw_bits)
+
+        stage_joint = StageResult(
+            job_id=job.id,
+            stage="JOINT_SEARCH",
+            json_result=joint_res,
+            confidence=joint_res["confidence"],
+            explanation=joint_res["explanation"]
+        )
+        db.add(stage_joint)
+        job.progress = 90.0
         job.status = "COMPLETED"
         db.commit()
         db.refresh(job)
