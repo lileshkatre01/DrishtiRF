@@ -40,3 +40,14 @@ class StageResultOut(BaseModel):
     json_result: Dict[str, Any]
     confidence: float
     explanation: Optional[str]
+
+class FrameOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    job_id: str
+    offset: int
+    sync_word: Optional[str]
+    header_hex: Optional[str]
+    payload_hex: Optional[str]
+    created_at: datetime

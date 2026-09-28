@@ -3,16 +3,17 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 
 from backend.api.deps import get_db
-from backend.api.schemas import JobOut, JobCreate, StageResultOut
+from backend.api.schemas import JobOut, JobCreate, StageResultOut, FrameOut
 from backend.core.explain import generate_explanation
 from backend.core.logging import logger
-from backend.db.models import Capture, Job, StageResult
+from backend.db.models import Capture, Job, StageResult, Frame
 from backend.dsp.ingestion import read_signal_file
 from backend.dsp.preprocess import preprocess_signal
 from backend.dsp.spectral import analyze_spectrum
 from backend.dsp.amc.fusion import classify_modulation
 from backend.dsp.demod.master_demod import demodulate_signal
 from backend.dsp.joint_search import search_joint_deinterleave_fec
+from backend.dsp.correlate import correlate_bitstream
 
 router = APIRouter(tags=["Analysis & Results"])
 
@@ -44,7 +45,7 @@ def get_capture_spectrum(capture_id: str, db: Session = Depends(get_db)):
 def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
     """
     Start a new pipeline analysis job for an uploaded signal capture.
-    Executes Spectral Analysis, AMC, Demodulation, and Joint De-interleaver/FEC search stages sequentially.
+    Executes Spectral Analysis, AMC, Demodulation, Joint Search, and Bitstream Correlation stages sequentially.
     """
     capture = db.query(Capture).filter(Capture.id == job_in.capture_id).first()
     if not capture:
@@ -80,7 +81,7 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=explanation_spectral
         )
         db.add(stage_spectral)
-        job.progress = 30.0
+        job.progress = 25.0
         job.stage = "AMC"
 
         # 2. AMC Stage
@@ -93,7 +94,7 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=amc_res["explanation"]
         )
         db.add(stage_amc)
-        job.progress = 55.0
+        job.progress = 45.0
         job.stage = "DEMOD"
 
         # 3. DEMOD Stage
@@ -110,7 +111,7 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=explanation_demod
         )
         db.add(stage_demod)
-        job.progress = 75.0
+        job.progress = 65.0
         job.stage = "JOINT_SEARCH"
 
         # 4. JOINT_SEARCH Stage (Core Novelty)
@@ -125,7 +126,37 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
             explanation=joint_res["explanation"]
         )
         db.add(stage_joint)
-        job.progress = 90.0
+        job.progress = 85.0
+        job.stage = "CORRELATION"
+
+        # 5. CORRELATION & FRAMING Stage (Phase 8)
+        decoded_bits = joint_res.get("decoded_bits", [])
+        if len(decoded_bits) == 0:
+            decoded_bits = raw_bits
+
+        corr_res = correlate_bitstream(decoded_bits)
+
+        stage_corr = StageResult(
+            job_id=job.id,
+            stage="CORRELATION",
+            json_result=corr_res,
+            confidence=corr_res["confidence"],
+            explanation=corr_res["explanation"]
+        )
+        db.add(stage_corr)
+
+        # Store extracted frames in database
+        for frame_dict in corr_res.get("frames", []):
+            frame_obj = Frame(
+                job_id=job.id,
+                offset=frame_dict["offset"],
+                sync_word=frame_dict["sync_word"],
+                header_hex=frame_dict["header_hex"],
+                payload_hex=frame_dict["payload_hex"]
+            )
+            db.add(frame_obj)
+
+        job.progress = 100.0
         job.status = "COMPLETED"
         db.commit()
         db.refresh(job)
@@ -158,3 +189,15 @@ def get_job_results(job_id: str, db: Session = Depends(get_db)):
     
     results = db.query(StageResult).filter(StageResult.job_id == job_id).all()
     return results
+
+@router.get("/jobs/{job_id}/frames", response_model=List[FrameOut])
+def get_job_frames(job_id: str, db: Session = Depends(get_db)):
+    """
+    Get all extracted bitstream frames and headers for a job.
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    frames = db.query(Frame).filter(Frame.job_id == job_id).all()
+    return frames
