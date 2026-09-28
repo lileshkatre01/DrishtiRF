@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: drishtirf-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://drishti:drishtipass@postgres:5432/drishtirf_db
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_DIR=/app/backend/storage
+    volumes:
+      - ./backend/storage:/app/backend/storage
+    depends_on:
+      - postgres
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: drishtirf-worker
+    environment:
+      - DATABASE_URL=postgresql://drishti:drishtipass@postgres:5432/drishtirf_db
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_DIR=/app/backend/storage
+    volumes:
+      - ./backend/storage:/app/backend/storage
+    depends_on:
+      - redis
+      - postgres
+
+  redis:
+    image: redis:7-alpine
+    container_name: drishtirf-redis
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: drishtirf-postgres
+    environment:
+      - POSTGRES_USER=drishti
+      - POSTGRES_PASSWORD=drishtipass
+      - POSTGRES_DB=drishtirf_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
