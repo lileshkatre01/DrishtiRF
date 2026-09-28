@@ -17,7 +17,15 @@ from backend.dsp.correlate import correlate_bitstream
 from backend.core.confidence import evaluate_job_confidence
 from backend.core.explain import generate_explanation
 
-@celery_app.task(name="drishtirf.pipeline.run_analysis")
+# If Celery is unavailable, use a no-op decorator so imports don't crash
+def _noop_task(*args, **kwargs):
+    def decorator(fn):
+        return fn
+    return decorator
+
+_task_decorator = celery_app.task if celery_app else _noop_task
+
+@_task_decorator(name="drishtirf.pipeline.run_analysis")
 def run_analysis_pipeline(job_id: str):
     """
     Celery background worker task for running the end-to-end DSP analysis pipeline.
