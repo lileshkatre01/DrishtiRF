@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.core.config import settings
 from backend.core.logging import logger
 from backend.db.session import Base, engine
-from backend.api.routers import health, upload
+from backend.api.routers import health, upload, results
 
 # Auto-create SQLite database tables for development scaffold
 Base.metadata.create_all(bind=engine)
@@ -26,6 +26,7 @@ app.add_middleware(
 # Register API Routers
 app.include_router(health.router, prefix=settings.API_V1_STR)
 app.include_router(upload.router, prefix=settings.API_V1_STR)
+app.include_router(results.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
