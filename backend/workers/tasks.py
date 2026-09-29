@@ -14,6 +14,7 @@ from backend.dsp.amc.fusion import classify_modulation
 from backend.dsp.demod.master_demod import demodulate_signal
 from backend.dsp.joint_search import search_joint_deinterleave_fec
 from backend.dsp.correlate import correlate_bitstream
+from backend.dsp.protocol_decoders import decode_protocol_payload
 from backend.core.confidence import evaluate_job_confidence
 from backend.core.explain import generate_explanation
 
@@ -121,15 +122,17 @@ def run_analysis_pipeline(job_id: str):
         if len(decoded_bits) == 0:
             decoded_bits = raw_bits
         corr_res = correlate_bitstream(decoded_bits)
-        db.add(StageResult(
-            job_id=job.id,
-            stage="CORRELATION",
-            json_result=corr_res,
-            confidence=corr_res["confidence"],
-            explanation=corr_res["explanation"]
-        ))
-
+        
+        # Phase 12 Protocol Telemetry Decoding
+        parsed_frames = []
         for f in corr_res.get("frames", []):
+            bit_str = f.get("bit_string", "")
+            sync_w = f.get("sync_word", "")
+            protocol_parsed = decode_protocol_payload(bit_str, sync_name=sync_w)
+            
+            f["protocol_telemetry"] = protocol_parsed
+            parsed_frames.append(f)
+            
             db.add(Frame(
                 job_id=job.id,
                 offset=f["offset"],
@@ -137,6 +140,16 @@ def run_analysis_pipeline(job_id: str):
                 header_hex=f["header_hex"],
                 payload_hex=f["payload_hex"]
             ))
+
+        corr_res["frames"] = parsed_frames
+        
+        db.add(StageResult(
+            job_id=job.id,
+            stage="CORRELATION",
+            json_result=corr_res,
+            confidence=corr_res["confidence"],
+            explanation=corr_res["explanation"]
+        ))
 
         # 6. Evaluate Overall 3-Tier Confidence
         confidence_summary = evaluate_job_confidence({
