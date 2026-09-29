@@ -28,16 +28,19 @@ def search_joint_deinterleave_fec(bits_input: Any, soft_symbols: Optional[np.nda
             "explanation": "Bitstream too short for joint de-interleaver and FEC search"
         }
 
+    # Limit bit evaluation window to max 1024 bits for fast hypothesis testing
+    search_bits = bits[:1024] if len(bits) > 1024 else bits
+
     # 1. Discover potential interleaver candidates
     interleaver_candidates = [("None", {})]
 
     # Test Block interleaver
-    r_opt, c_opt, block_score = search_block_interleaver(bits)
+    r_opt, c_opt, block_score = search_block_interleaver(search_bits)
     if block_score > 0.55:
         interleaver_candidates.append(("Block", {"rows": r_opt, "cols": c_opt}))
 
     # Test Convolutional interleaver
-    d_opt, m_opt, conv_score = search_conv_interleaver(bits)
+    d_opt, m_opt, conv_score = search_conv_interleaver(search_bits)
     if conv_score > 0.55:
         interleaver_candidates.append(("Convolutional", {"depth": d_opt, "span": m_opt}))
 
@@ -47,7 +50,7 @@ def search_joint_deinterleave_fec(bits_input: Any, soft_symbols: Optional[np.nda
 
     # 2. Joint Search Loop across (Interleaver Candidate x FEC Candidate)
     best_score = -1.0
-    best_payload = bits
+    best_payload = search_bits
     best_syndrome_zero = False
     best_interleaver_name = "None"
     best_fec_name = "None"
@@ -57,16 +60,16 @@ def search_joint_deinterleave_fec(bits_input: Any, soft_symbols: Optional[np.nda
     for ileav_type, ileav_params in interleaver_candidates:
         # Apply candidate de-interleaver
         if ileav_type == "Block":
-            deint_bits = deinterleave_block(bits, ileav_params.get("rows", 8), ileav_params.get("cols", 16))
+            deint_bits = deinterleave_block(search_bits, ileav_params.get("rows", 8), ileav_params.get("cols", 16))
             ileav_str = f"Block ({ileav_params.get('rows', 8)}x{ileav_params.get('cols', 16)})"
         elif ileav_type == "Convolutional":
-            deint_bits = deinterleave_conv(bits, ileav_params.get("depth", 4), ileav_params.get("span", 2))
+            deint_bits = deinterleave_conv(search_bits, ileav_params.get("depth", 4), ileav_params.get("span", 2))
             ileav_str = f"Convolutional (Depth {ileav_params.get('depth', 4)}, Span {ileav_params.get('span', 2)})"
         elif ileav_type == "Diagonal":
-            deint_bits = deinterleave_diagonal(bits, ileav_params.get("rows", 8), ileav_params.get("cols", 16))
+            deint_bits = deinterleave_diagonal(search_bits, ileav_params.get("rows", 8), ileav_params.get("cols", 16))
             ileav_str = f"Diagonal ({ileav_params.get('rows', 8)}x{ileav_params.get('cols', 16)})"
         else:
-            deint_bits = bits
+            deint_bits = search_bits
             ileav_str = "None"
 
         # Evaluate candidate FEC decoders

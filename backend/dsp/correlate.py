@@ -72,11 +72,7 @@ def correlate_bitstream(
         bipolar_pat = (2 * pat_bits.astype(float)) - 1
 
         # Compute sliding normalized cross-correlation
-        num_offsets = len(bits) - M + 1
-        corr = np.zeros(num_offsets, dtype=float)
-        
-        for k in range(num_offsets):
-            corr[k] = np.sum(bipolar_bits[k : k + M] * bipolar_pat) / M
+        corr = np.correlate(bipolar_bits, bipolar_pat, mode='valid') / M
 
         # Test both normal and inverted orientation
         for inverted in [False, True]:
