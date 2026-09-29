@@ -77,11 +77,52 @@ def correct_iq_imbalance(iq: IQCapture) -> IQCapture:
         metadata=iq.metadata.copy()
     )
 
-def preprocess_signal(iq: IQCapture, remove_dc: bool = True, normalize: bool = True, correct_imbalance: bool = True) -> IQCapture:
+def estimate_and_correct_cfo(iq: IQCapture) -> IQCapture:
     """
-    Full preprocessing pipeline: DC offset removal -> IQ imbalance correction -> Power normalization.
+    Estimate Carrier Frequency Offset (CFO) / Doppler shift using 4th-power spectral peak and derotate.
+    """
+    if iq.num_samples < 64:
+        return iq
+        
+    samples = iq.samples
+    fs = iq.sample_rate
+
+    # 4th-power non-linear spectrum for M-PSK/QAM carrier recovery
+    x4 = samples ** 4
+    fft_vals = np.fft.fftshift(np.fft.fft(x4))
+    freqs = np.fft.fftshift(np.fft.fftfreq(len(samples), d=1.0/fs))
+
+    peak_idx = np.argmax(np.abs(fft_vals))
+    cfo_est = freqs[peak_idx] / 4.0
+
+    # Derotate samples
+    t = np.arange(len(samples)) / fs
+    derotated = samples * np.exp(-1j * 2 * np.pi * cfo_est * t)
+
+    meta = iq.metadata.copy()
+    meta["estimated_cfo_hz"] = float(cfo_est)
+
+    return IQCapture(
+        samples=derotated.astype(np.complex64),
+        sample_rate=iq.sample_rate,
+        center_freq=iq.center_freq,
+        source_format=iq.source_format,
+        metadata=meta
+    )
+
+def preprocess_signal(
+    iq: IQCapture,
+    remove_dc: bool = True,
+    correct_imbalance: bool = True,
+    correct_cfo: bool = False,
+    normalize: bool = True
+) -> IQCapture:
+    """
+    Full preprocessing pipeline: CFO derotation -> DC offset removal -> IQ imbalance correction -> Power normalization.
     """
     result = iq
+    if correct_cfo:
+        result = estimate_and_correct_cfo(result)
     if remove_dc:
         result = remove_dc_offset(result)
     if correct_imbalance:

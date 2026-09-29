@@ -2,6 +2,7 @@ import numpy as np
 from typing import Dict, Any
 
 from backend.dsp.iqcapture import IQCapture
+from backend.dsp.preprocess import preprocess_signal
 from backend.dsp.symbol_rate import estimate_symbol_rate
 from backend.dsp.amc.feature_classifier import classify_modulation_features
 from backend.dsp.amc.cnn_classifier import classify_modulation_cnn
@@ -12,14 +13,17 @@ def classify_modulation(iq: IQCapture, min_confidence_threshold: float = 0.45) -
     Master Automatic Modulation Classification (AMC) Fusion Engine:
     Combines Symbol Rate Consensus, Classical Cumulants, and Deep CNN paths.
     """
+    # 0. Preprocess Signal (DC removal, IQ imbalance correction, CFO derotation, power normalization)
+    clean_iq = preprocess_signal(iq)
+
     # 1. Estimate Symbol Rate
-    symbol_rate_hz, symbol_rate_conf = estimate_symbol_rate(iq)
+    symbol_rate_hz, symbol_rate_conf = estimate_symbol_rate(clean_iq)
 
     # 2. Run Classical Feature Classifier (Cumulants + Instantaneous features)
-    feat_res = classify_modulation_features(iq.samples)
+    feat_res = classify_modulation_features(clean_iq.samples)
 
     # 3. Run Deep CNN Classifier
-    cnn_res = classify_modulation_cnn(iq.samples)
+    cnn_res = classify_modulation_cnn(clean_iq.samples)
 
     # 4. Fusion Engine: Probability Weighting (60% Classical + 40% Deep)
     all_mods = ["2FSK", "4FSK", "BPSK", "QPSK", "8PSK", "16QAM", "64QAM"]

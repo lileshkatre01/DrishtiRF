@@ -1,0 +1,76 @@
+{
+  "overall_accuracy": "17.14%",
+  "total_samples_evaluated": 35,
+  "accuracy_by_snr": {
+    "-5.0_dB": "14.29%",
+    "0.0_dB": "14.29%",
+    "5.0_dB": "14.29%",
+    "12.0_dB": "14.29%",
+    "20.0_dB": "28.57%"
+  },
+  "confusion_matrix": {
+    "2FSK": {
+      "2FSK": 3,
+      "4FSK": 2,
+      "BPSK": 0,
+      "QPSK": 0,
+      "8PSK": 0,
+      "16QAM": 0,
+      "64QAM": 0
+    },
+    "4FSK": {
+      "2FSK": 3,
+      "4FSK": 2,
+      "BPSK": 0,
+      "QPSK": 0,
+      "8PSK": 0,
+      "16QAM": 0,
+      "64QAM": 0
+    },
+    "BPSK": {
+      "2FSK": 1,
+      "4FSK": 3,
+      "BPSK": 0,
+      "QPSK": 1,
+      "8PSK": 0,
+      "16QAM": 0,
+      "64QAM": 0
+    },
+    "QPSK": {
+      "2FSK": 3,
+      "4FSK": 2,
+      "BPSK": 0,
+      "QPSK": 0,
+      "8PSK": 0,
+      "16QAM": 0,
+      "64QAM": 0
+    },
+    "8PSK": {
+      "2FSK": 2,
+      "4FSK": 2,
+      "BPSK": 0,
+      "QPSK": 1,
+      "8PSK": 0,
+      "16QAM": 0,
+      "64QAM": 0
+    },
+    "16QAM": {
+      "2FSK": 1,
+      "4FSK": 3,
+      "BPSK": 0,
+      "QPSK": 0,
+      "8PSK": 0,
+      "16QAM": 1,
+      "64QAM": 0
+    },
+    "64QAM": {
+      "2FSK": 3,
+      "4FSK": 2,
+      "BPSK": 0,
+      "QPSK": 0,
+      "8PSK": 0,
+      "16QAM": 0,
+      "64QAM": 0
+    }
+  }
+}

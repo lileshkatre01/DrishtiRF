@@ -15,25 +15,32 @@ def classify_modulation_cnn(samples: np.ndarray) -> Dict[str, Any]:
             "reason": "Insufficient samples for CNN classification"
         }
 
+    # Equalize amplitude & remove mean phase rotation (CFO / Doppler compensation)
+    norm_samples = samples / (np.sqrt(np.mean(np.abs(samples)**2)) + 1e-12)
+    
+    # Derotate 4th power phase to align PSK/QAM constellation axes
+    phase4 = np.angle(np.mean(norm_samples**4)) / 4.0
+    derotated = norm_samples * np.exp(-1j * phase4)
+
     # Constellation density evaluation (histogram grid)
-    i_data = np.real(samples)
-    q_data = np.imag(samples)
+    i_data = np.real(derotated)
+    q_data = np.imag(derotated)
     
     # 32x32 constellation density matrix
     H, _, _ = np.histogram2d(i_data, q_data, bins=32, range=[[-2, 2], [-2, 2]])
-    non_zero_clusters = np.sum(H > (0.01 * np.max(H)))
+    non_zero_clusters = np.sum(H > (0.02 * np.max(H)))
 
     # Basic CNN-like constellation density heuristics
-    if non_zero_clusters <= 3:
+    if non_zero_clusters <= 4:
         mod = "BPSK"
         conf = 0.90
-    elif non_zero_clusters <= 6:
+    elif non_zero_clusters <= 8:
         mod = "QPSK"
         conf = 0.88
-    elif non_zero_clusters <= 10:
+    elif non_zero_clusters <= 14:
         mod = "8PSK"
         conf = 0.85
-    elif non_zero_clusters <= 20:
+    elif non_zero_clusters <= 24:
         mod = "16QAM"
         conf = 0.89
     else:

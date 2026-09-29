@@ -1,0 +1,12 @@
+{
+  "ground_truth_mod": "8PSK",
+  "ground_truth_symbol_rate": 100000.0,
+  "ground_truth_snr_db": 12.0,
+  "ground_truth_cfo_hz": 0.0,
+  "samples_per_symbol": 10,
+  "sdr_simulation": true,
+  "k_factor_db": 4.0,
+  "doppler_hz": 300.0,
+  "adc_bits": 8,
+  "iq_imbalance_db": 0.5
+}

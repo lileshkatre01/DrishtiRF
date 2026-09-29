@@ -31,22 +31,8 @@ def classify_modulation_features(samples: np.ndarray) -> Dict[str, Any]:
 
     c20_norm = c20_mag / (c21 + 1e-12)
 
-    # 1. Variable Envelope (QAM Family)
-    if sig_ap > 0.22 or papr > 3.8:
-        family = "QAM"
-        if sig_ap < 0.45 or c42_norm > -0.75:
-            mod = "16QAM"
-            order = 16
-            conf = 0.92
-            reason = f"Multi-amplitude envelope (sigma_ap={sig_ap:.2f}) and C42_norm={c42_norm:.2f} match 16-QAM"
-        else:
-            mod = "64QAM"
-            order = 64
-            conf = 0.88
-            reason = f"Multi-amplitude QAM distribution (sigma_ap={sig_ap:.2f}, PAPR={papr:.1f} dB)"
-
-    # 2. Continuous Tone Frequency Modulation (FSK Family)
-    elif med_dphase > 0.18 and sig_ap < 0.20:
+    # 1. Continuous Tone Frequency Modulation (FSK Family)
+    if med_dphase > 0.18 and sig_ap < 0.22:
         family = "FSK"
         if sig_af > 0.15:
             mod = "4FSK"
@@ -58,6 +44,20 @@ def classify_modulation_features(samples: np.ndarray) -> Dict[str, Any]:
             order = 2
             conf = 0.94
             reason = f"Constant envelope with discrete binary tone shifts (median_dphase={med_dphase:.3f}) matches 2FSK"
+
+    # 2. Variable Envelope (QAM Family)
+    elif sig_ap > 0.22 or papr > 3.8:
+        family = "QAM"
+        if sig_ap < 0.45 or c42_norm > -0.75:
+            mod = "16QAM"
+            order = 16
+            conf = 0.92
+            reason = f"Multi-amplitude envelope (sigma_ap={sig_ap:.2f}) and C42_norm={c42_norm:.2f} match 16-QAM"
+        else:
+            mod = "64QAM"
+            order = 64
+            conf = 0.88
+            reason = f"Multi-amplitude QAM distribution (sigma_ap={sig_ap:.2f}, PAPR={papr:.1f} dB)"
 
     # 3. Phase Shift Keying (PSK Family)
     else:

@@ -33,12 +33,14 @@ def test_cumulants_calculation():
     assert cum["C21"] > 0.0
 
 def test_amc_classification_accuracy():
+    np.random.seed(42)
     test_mods = ["2FSK", "BPSK", "QPSK", "16QAM"]
     correct = 0
 
     for mod in test_mods:
         iq = generate_synthetic_iq(mod_type=mod, num_symbols=2000, snr_db=20.0)
         res = classify_modulation(iq)
+        print(f"Ground Truth: {mod}, Predicted: {res['modulation']}")
         if res["modulation"] == mod:
             correct += 1
 

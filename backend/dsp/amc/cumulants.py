@@ -57,7 +57,14 @@ def compute_instantaneous_features(samples: np.ndarray) -> Dict[str, float]:
     mean_amp = np.mean(amp) + 1e-12
     norm_amp = amp / mean_amp
 
-    sigma_ap = float(np.std(norm_amp))
+    # Apply moving average AGC to filter out slow multipath channel fading
+    window_len = min(64, max(8, len(samples) // 50))
+    if window_len > 1:
+        fading_envelope = np.convolve(norm_amp, np.ones(window_len)/window_len, mode='same')
+        eq_norm_amp = norm_amp / (fading_envelope + 1e-6)
+        sigma_ap = float(np.std(eq_norm_amp))
+    else:
+        sigma_ap = float(np.std(norm_amp))
 
     phase = np.angle(samples)
     unwrapped_phase = np.unwrap(phase)
