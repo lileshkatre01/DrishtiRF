@@ -52,7 +52,7 @@ export default function AMCPanel({ result }) {
         ▸ STAGE 2 · AUTOMATIC MODULATION CLASSIFICATION
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="flex flex-col gap-4">
 
         {/* Verdict card */}
         <div className="rounded-xl p-6 flex flex-col gap-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>

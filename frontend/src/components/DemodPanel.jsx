@@ -50,7 +50,7 @@ export default function DemodPanel({ result, modType }) {
         ▸ STAGE 3 · DEMODULATION · {modType ?? ''}
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="flex flex-col gap-4">
 
         {/* Stats */}
         <div className="rounded-xl p-5 flex flex-col gap-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
@@ -82,7 +82,7 @@ export default function DemodPanel({ result, modType }) {
         </div>
 
         {/* Constellation */}
-        {constTrace ? (
+        {constTrace && (
           <div className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
             <div className="text-xs font-bold tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>CONSTELLATION DIAGRAM</div>
             <Plot
@@ -95,10 +95,10 @@ export default function DemodPanel({ result, modType }) {
               style={{ width: '100%', height: '220px' }}
             />
           </div>
-        ) : <div />}
+        )}
 
         {/* Eye diagram */}
-        {eyeTrace ? (
+        {eyeTrace && (
           <div className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
             <div className="text-xs font-bold tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>EYE DIAGRAM</div>
             <Plot
@@ -111,7 +111,7 @@ export default function DemodPanel({ result, modType }) {
               style={{ width: '100%', height: '220px' }}
             />
           </div>
-        ) : <div />}
+        )}
 
       </div>
     </section>

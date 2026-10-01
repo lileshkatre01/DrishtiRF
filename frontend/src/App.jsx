@@ -110,12 +110,17 @@ export default function App() {
           <SpectrumPanel spectrum={spectrum || results.SPECTRAL?.json_result} capture={capture} />
         )}
 
-        {results.AMC && (
-          <AMCPanel result={results.AMC} />
-        )}
+        {/* Stage 2 & Stage 3 Side-by-Side */}
+        {(results.AMC || results.DEMOD) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {results.AMC && (
+              <AMCPanel result={results.AMC} />
+            )}
 
-        {results.DEMOD && results.AMC && (
-          <DemodPanel result={results.DEMOD} modType={results.AMC?.json_result?.modulation} />
+            {results.DEMOD && results.AMC && (
+              <DemodPanel result={results.DEMOD} modType={results.AMC?.json_result?.modulation} />
+            )}
+          </div>
         )}
 
         {results.JOINT_SEARCH && (
