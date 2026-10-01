@@ -7,9 +7,15 @@ const api = axios.create({
 
 export const healthCheck = () => api.get('/health')
 
-export const uploadSignalFile = (file, opts = {}) => {
+export const uploadSignalFile = (fileOrPath, opts = {}) => {
   const form = new FormData()
-  form.append('file', file)
+  if (typeof fileOrPath === 'string') {
+    form.append('file_path', fileOrPath)
+  } else if (fileOrPath && fileOrPath.path) {
+    form.append('file_path', fileOrPath.path)
+  } else {
+    form.append('file', fileOrPath)
+  }
   if (opts.sampleRate)    form.append('sample_rate_override', opts.sampleRate)
   if (opts.centerFreq)    form.append('center_freq_override', opts.centerFreq)
   if (opts.formatOverride) form.append('format_override', opts.formatOverride)

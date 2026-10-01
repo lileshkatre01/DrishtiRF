@@ -7,7 +7,9 @@ export function useWebSocket(jobId) {
 
   const connect = useCallback(() => {
     if (!jobId) return
-    const ws = new WebSocket(`ws://127.0.0.1:8000/api/ws/jobs/${jobId}`)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host || '127.0.0.1:8000'
+    const ws = new WebSocket(`${protocol}//${host}/api/ws/jobs/${jobId}`)
     wsRef.current = ws
 
     ws.onopen = () => {

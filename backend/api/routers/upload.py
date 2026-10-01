@@ -17,7 +17,8 @@ router = APIRouter(prefix="/upload", tags=["Ingestion & Upload"])
 
 @router.post("", response_model=CaptureOut, status_code=status.HTTP_201_CREATED)
 async def upload_signal_file(
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    file_path: Optional[str] = Form(None),
     format_override: Optional[str] = Form(None),
     sample_rate_override: Optional[float] = Form(None),
     center_freq_override: Optional[float] = Form(None),
@@ -25,25 +26,32 @@ async def upload_signal_file(
 ):
     """
     Upload and ingest an offline .iq, .wav, or .sigmf signal file.
-    - Saves raw file to storage.
+    - If file_path is provided (desktop mode), opens directly from disk with no copy.
+    - If file is uploaded via HTTP multipart, saves raw file to storage uploads.
     - Infers/parses format and parameters.
     - Normalizes power and applies DC offset correction.
     - Writes record to database.
     """
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
-
     file_id = str(uuid.uuid4())
-    safe_filename = f"{file_id}_{os.path.basename(file.filename)}"
-    save_path = os.path.join(settings.STORAGE_DIR, "uploads", safe_filename)
 
-    # Save uploaded bytes to disk
-    try:
-        with open(save_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-    except Exception as e:
-        logger.error(f"Failed to save upload file: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    if file_path and file_path.strip():
+        clean_path = file_path.strip().strip('"')
+        if not os.path.exists(clean_path):
+            raise HTTPException(status_code=404, detail=f"File not found on local disk: {clean_path}")
+        save_path = os.path.abspath(clean_path)
+        original_filename = os.path.basename(clean_path)
+    elif file and file.filename:
+        safe_filename = f"{file_id}_{os.path.basename(file.filename)}"
+        save_path = os.path.join(settings.STORAGE_DIR, "uploads", safe_filename)
+        original_filename = file.filename
+        try:
+            with open(save_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+        except Exception as e:
+            logger.error(f"Failed to save upload file: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    else:
+        raise HTTPException(status_code=400, detail="No file or file_path provided")
 
     # Ingest and preprocess signal file
     try:
@@ -55,13 +63,13 @@ async def upload_signal_file(
         )
         clean_iq = preprocess_signal(raw_iq)
     except Exception as e:
-        logger.error(f"Failed to parse signal file {file.filename}: {str(e)}")
+        logger.error(f"Failed to parse signal file {original_filename}: {str(e)}")
         raise HTTPException(status_code=422, detail=f"Error parsing signal file: {str(e)}")
 
     # Write capture metadata record to database
     capture_entry = Capture(
         id=file_id,
-        filename=file.filename,
+        filename=original_filename,
         path=save_path,
         format=clean_iq.source_format,
         sample_rate=clean_iq.sample_rate,
@@ -73,6 +81,6 @@ async def upload_signal_file(
     db.commit()
     db.refresh(capture_entry)
 
-    logger.info(f"Successfully uploaded and ingested capture ID {file_id}: {file.filename} ({clean_iq.source_format}, N={clean_iq.num_samples})")
+    logger.info(f"Successfully ingested capture ID {file_id}: {original_filename} ({clean_iq.source_format}, N={clean_iq.num_samples})")
 
     return capture_entry
