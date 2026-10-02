@@ -5,6 +5,7 @@ import PipelineProgress from './components/PipelineProgress'
 import SpectrumPanel from './components/SpectrumPanel'
 import AMCPanel from './components/AMCPanel'
 import DemodPanel from './components/DemodPanel'
+import EyeDiagramPanel from './components/EyeDiagramPanel'
 import JointSearchPanel from './components/JointSearchPanel'
 import CorrelationPanel from './components/CorrelationPanel'
 import ConfidencePanel from './components/ConfidencePanel'
@@ -121,6 +122,10 @@ export default function App() {
               <DemodPanel result={results.DEMOD} modType={results.AMC?.json_result?.modulation} />
             )}
           </div>
+        )}
+
+        {results.DEMOD && (
+          <EyeDiagramPanel result={results.DEMOD} />
         )}
 
         {results.JOINT_SEARCH && (

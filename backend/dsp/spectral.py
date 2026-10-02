@@ -181,30 +181,69 @@ def estimate_snr(psd_db: np.ndarray, noise_floor_db: float, bw_hz: float, sample
     confidence = min(1.0, snr_db / 30.0) if snr_db > 0 else 0.2
     return snr_db, confidence
 
+def get_rf_band_label(center_freq_hz: float) -> str:
+    """
+    Classify the estimated center frequency into standard RF band labels.
+    HF: 3-30 MHz | VHF: 30-300 MHz | UHF: 300 MHz - 3 GHz | SHF: 3-30 GHz
+    """
+    if center_freq_hz is None or center_freq_hz <= 0:
+        return "UNKNOWN"
+    freq_mhz = abs(center_freq_hz) / 1e6
+    if freq_mhz < 0.3:
+        return "LF/MF (< 300 kHz)"
+    elif freq_mhz < 3.0:
+        return "MF (300 kHz – 3 MHz)"
+    elif freq_mhz < 30.0:
+        return "HF (3 – 30 MHz)"
+    elif freq_mhz < 300.0:
+        return "VHF (30 – 300 MHz)"
+    elif freq_mhz < 3000.0:
+        return "UHF (300 MHz – 3 GHz)"
+    elif freq_mhz < 30000.0:
+        return "SHF (3 – 30 GHz)"
+    else:
+        return "EHF (> 30 GHz)"
+
+
 def analyze_spectrum(iq: IQCapture) -> Dict[str, Any]:
     """
     Master Spectral Analysis Engine: Compute PSD, decimated waterfall, BW, CF offset, SNR, noise floor.
-    Returns complete JSON-serializable spectral dictionary.
+    Returns complete JSON-serializable spectral dictionary including RF band label and symbol rate.
     """
+    from backend.dsp.symbol_rate import estimate_symbol_rate
+
     freqs, psd_db, noise_floor_db = compute_psd(iq)
     waterfall = compute_waterfall(iq)
     bw_dict = estimate_bandwidth(freqs, psd_db, noise_floor_db)
     cf_offset, cf_conf = estimate_center_frequency(iq, freqs, psd_db)
     snr_db, snr_conf = estimate_snr(psd_db, noise_floor_db, bw_dict["bw_10db"], iq.sample_rate)
 
+    # Estimated absolute center frequency
+    estimated_cf_hz = (iq.center_freq or 0.0) + cf_offset
+
+    # RF Band Classification
+    band_label = get_rf_band_label(estimated_cf_hz if estimated_cf_hz != 0 else iq.sample_rate / 2)
+
+    # Symbol Rate (directly from spectral stage so UI can show it immediately)
+    symbol_rate_hz, symbol_rate_conf = estimate_symbol_rate(iq)
+
     return {
         "sample_rate": iq.sample_rate,
         "center_freq_declared": iq.center_freq,
         "center_freq_offset_hz": cf_offset,
-        "center_freq_estimated_hz": (iq.center_freq or 0.0) + cf_offset,
+        "center_freq_estimated_hz": estimated_cf_hz,
         "center_freq_confidence": cf_conf,
+        "rf_band": band_label,
         "noise_floor_db": noise_floor_db,
         "snr_db": snr_db,
         "snr_confidence": snr_conf,
         "bandwidth_3db_hz": bw_dict["bw_3db"],
         "bandwidth_10db_hz": bw_dict["bw_10db"],
         "bandwidth_99pct_hz": bw_dict["bw_99pct"],
+        "symbol_rate_baud": float(symbol_rate_hz),
+        "symbol_rate_confidence": float(symbol_rate_conf),
         "frequencies": freqs.tolist(),
         "psd_db": psd_db.tolist(),
         "waterfall": waterfall
     }
+

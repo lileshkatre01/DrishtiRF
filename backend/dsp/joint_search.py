@@ -4,11 +4,13 @@ from typing import Dict, Any, Optional, List
 from backend.dsp.deinterleave.block import deinterleave_block, search_block_interleaver
 from backend.dsp.deinterleave.convolutional import deinterleave_conv, search_conv_interleaver
 from backend.dsp.deinterleave.diagonal import deinterleave_diagonal
+from backend.dsp.deinterleave.pseudo_random import deinterleave_pseudo_random, search_pseudo_random_interleaver
 from backend.dsp.fec.viterbi import decode_viterbi
 from backend.dsp.fec.reed_solomon import decode_reed_solomon
 from backend.dsp.fec.concatenated import decode_concatenated
 from backend.dsp.fec.ldpc import decode_ldpc
 from backend.core.explain import generate_explanation
+
 
 def search_joint_deinterleave_fec(bits_input: Any, soft_symbols: Optional[np.ndarray] = None) -> Dict[str, Any]:
     """
@@ -44,6 +46,11 @@ def search_joint_deinterleave_fec(bits_input: Any, soft_symbols: Optional[np.nda
     if conv_score > 0.55:
         interleaver_candidates.append(("Convolutional", {"depth": d_opt, "span": m_opt}))
 
+    # Test Pseudo-Random interleaver (NEW — was previously missing)
+    pr_seed, pr_block, pr_score = search_pseudo_random_interleaver(search_bits)
+    if pr_score > 0.05:
+        interleaver_candidates.append(("PseudoRandom", {"seed": pr_seed, "block_size": pr_block}))
+
     # Default fallback matrix candidates
     interleaver_candidates.append(("Block", {"rows": 8, "cols": 16}))
     interleaver_candidates.append(("Diagonal", {"rows": 8, "cols": 16}))
@@ -68,6 +75,9 @@ def search_joint_deinterleave_fec(bits_input: Any, soft_symbols: Optional[np.nda
         elif ileav_type == "Diagonal":
             deint_bits = deinterleave_diagonal(search_bits, ileav_params.get("rows", 8), ileav_params.get("cols", 16))
             ileav_str = f"Diagonal ({ileav_params.get('rows', 8)}x{ileav_params.get('cols', 16)})"
+        elif ileav_type == "PseudoRandom":
+            deint_bits = deinterleave_pseudo_random(search_bits, seed=ileav_params.get("seed", 42), block_size=ileav_params.get("block_size", 64))
+            ileav_str = f"PseudoRandom (Seed={ileav_params.get('seed', 42)}, Block={ileav_params.get('block_size', 64)})"
         else:
             deint_bits = search_bits
             ileav_str = "None"

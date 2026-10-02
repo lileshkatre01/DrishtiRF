@@ -53,12 +53,23 @@ export default function SpectrumPanel({ spectrum, capture }) {
     zsmooth: 'best',
   } : null
 
+  // Band label color
+  const bandColor = (band) => {
+    if (!band || band === 'UNKNOWN') return 'var(--text-muted)'
+    if (band.startsWith('HF')) return '#ff8c00'
+    if (band.startsWith('VHF')) return '#00b4ff'
+    if (band.startsWith('UHF')) return '#00ff88'
+    return 'var(--accent-amber)'
+  }
+
   // Stat cards
   const stats = [
     { label: 'SNR', value: spectrum.snr_db != null ? `${spectrum.snr_db.toFixed(1)} dB` : '—', color: 'var(--accent-green)' },
     { label: 'BW (10 dB)', value: spectrum.bandwidth_10db_hz != null ? `${(spectrum.bandwidth_10db_hz / 1e3).toFixed(1)} kHz` : '—', color: 'var(--accent-blue)' },
     { label: 'Freq Offset', value: spectrum.center_freq_offset_hz != null ? `${(spectrum.center_freq_offset_hz / 1e3).toFixed(2)} kHz` : '—', color: 'var(--accent-amber)' },
     { label: 'Noise Floor', value: spectrum.noise_floor_db != null ? `${spectrum.noise_floor_db.toFixed(1)} dB` : '—', color: 'var(--text-muted)' },
+    { label: 'Symbol Rate', value: spectrum.symbol_rate_baud != null && spectrum.symbol_rate_baud > 0 ? `${(spectrum.symbol_rate_baud / 1e3).toFixed(2)} kBd` : '—', color: '#a78bfa' },
+    { label: 'RF Band', value: spectrum.rf_band ?? '—', color: bandColor(spectrum.rf_band) },
   ]
 
   return (
@@ -68,7 +79,7 @@ export default function SpectrumPanel({ spectrum, capture }) {
       </h2>
 
       {/* Stat row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {stats.map(s => (
           <div key={s.label} className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
             <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
