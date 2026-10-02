@@ -223,3 +223,76 @@ def get_job_frames(job_id: str, db: Session = Depends(get_db)):
     
     frames = db.query(Frame).filter(Frame.job_id == job_id).all()
     return frames
+
+@router.get("/jobs/{job_id}/export/sigmf")
+def export_sigmf_metadata(job_id: str, db: Session = Depends(get_db)):
+    """
+    Export signal analysis results as a standardized SigMF metadata (.sigmf-meta) specification.
+    Allows other NTRO sensors and SDR tools to consume extracted parameters directly.
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    capture = db.query(Capture).filter(Capture.id == job.capture_id).first()
+    results = db.query(StageResult).filter(StageResult.job_id == job_id).all()
+    res_map = {r.stage: r.json_result for r in results}
+
+    spectral = res_map.get("SPECTRAL", {})
+    amc = res_map.get("AMC", {})
+    joint = res_map.get("JOINT_SEARCH", {})
+    conf = res_map.get("CONFIDENCE_EVALUATION", {})
+
+    sigmf_meta = {
+        "global": {
+            "core:datatype": capture.format if capture else "cf32_le",
+            "core:sample_rate": float(spectral.get("sample_rate", capture.sample_rate if capture else 1e6)),
+            "core:version": "1.0.0",
+            "core:description": f"DrishtiRF Automated Signal Analysis - {capture.filename if capture else 'Unknown'}",
+            "core:author": "AlphaTrion / DrishtiRF Platform",
+            "drishti:modulation": amc.get("modulation", "UNKNOWN"),
+            "drishti:rf_band": spectral.get("rf_band", "UNKNOWN"),
+            "drishti:snr_db": spectral.get("snr_db", 0.0),
+            "drishti:bandwidth_10db_hz": spectral.get("bandwidth_10db_hz", 0.0),
+            "drishti:symbol_rate_baud": amc.get("symbol_rate_baud", 0.0),
+            "drishti:fec_scheme": joint.get("best_fec", "None"),
+            "drishti:interleaver": joint.get("best_interleaver", "None"),
+            "drishti:confidence_tier": conf.get("tier_code", "TIER_C"),
+            "drishti:overall_confidence": conf.get("overall_confidence", 0.0)
+        },
+        "captures": [
+            {
+                "core:sample_start": 0,
+                "core:frequency": float(spectral.get("center_freq_estimated_hz", capture.center_freq if capture else 0.0)),
+                "core:datetime": str(job.created_at) if hasattr(job, 'created_at') else "2026-10-02T00:00:00Z"
+            }
+        ],
+        "annotations": []
+    }
+
+    return sigmf_meta
+
+@router.get("/jobs/{job_id}/export/csv")
+def export_frames_csv(job_id: str, db: Session = Depends(get_db)):
+    """
+    Export extracted bitstream frames, headers, and payloads in standard CSV format.
+    """
+    from fastapi.responses import Response
+
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    frames = db.query(Frame).filter(Frame.job_id == job_id).all()
+    
+    csv_lines = ["frame_index,offset,sync_word,header_hex,payload_hex"]
+    for idx, f in enumerate(frames):
+        csv_lines.append(f"{idx+1},{f.offset},\"{f.sync_word}\",\"{f.header_hex}\",\"{f.payload_hex}\"")
+
+    csv_content = "\n".join(csv_lines)
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=drishtirf_frames_job_{job_id[:8]}.csv"}
+    )
+

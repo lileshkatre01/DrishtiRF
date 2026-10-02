@@ -15,29 +15,34 @@ export default function EyeDiagramPanel({ result }) {
   if (!result) return null
   const r = result.json_result ?? {}
 
-  // Eye diagram is a 2D array: each row is one symbol period trace
-  const eyeMatrix = r.eye_diagram ?? []
+  // Handle both {time: [], traces: [[]]} and raw [[]]
+  const eyeData = r.eye_diagram
+  if (!eyeData) return null
 
-  if (!eyeMatrix || eyeMatrix.length === 0) return null
+  const timeAxis = Array.isArray(eyeData?.time) ? eyeData.time : null
+  const traceList = Array.isArray(eyeData?.traces) ? eyeData.traces : (Array.isArray(eyeData) ? eyeData : [])
 
-  // Build one Plotly trace per symbol period row (limit to 80 traces for performance)
-  const maxTraces = Math.min(eyeMatrix.length, 80)
+  if (traceList.length === 0) return null
+
+  // Build Plotly traces per symbol period (limit to 60 traces for fast rendering)
+  const maxTraces = Math.min(traceList.length, 60)
   const traces = []
 
   for (let i = 0; i < maxTraces; i++) {
-    const row = eyeMatrix[i]
+    const row = traceList[i]
     if (!Array.isArray(row) || row.length === 0) continue
     traces.push({
-      x: row.map((_, idx) => idx),
+      x: timeAxis && timeAxis.length === row.length ? timeAxis : row.map((_, idx) => idx),
       y: row,
       type: 'scatter',
       mode: 'lines',
-      line: { color: 'rgba(0,180,255,0.18)', width: 1 },
+      line: { color: 'rgba(0,180,255,0.22)', width: 1.2 },
       hoverinfo: 'skip',
     })
   }
 
   if (traces.length === 0) return null
+
 
   return (
     <section className="space-y-4">

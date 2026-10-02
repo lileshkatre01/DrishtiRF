@@ -5,23 +5,30 @@ from backend.dsp.iqcapture import IQCapture
 from backend.dsp.demod.fsk import demodulate_fsk
 from backend.dsp.demod.psk import demodulate_psk
 from backend.dsp.demod.qam import demodulate_qam
+from backend.dsp.demod.am import demodulate_am
+from backend.dsp.demod.fm import demodulate_fm
 from backend.dsp.demod.common import generate_constellation_points, generate_eye_diagram
 
 def demodulate_signal(iq: IQCapture, mod_type: str = "QPSK", symbol_rate: float = 100e3) -> Dict[str, Any]:
     """
     Master Demodulation Router:
-    Dispatches to FSK, PSK, or QAM demodulator chains dynamically based on modulation label.
+    Dispatches to AM, FM, FSK, PSK, or QAM demodulator chains dynamically based on modulation label.
     Computes constellation scatter points and eye-diagram time vs amplitude matrix.
     """
     mod_upper = mod_type.upper()
 
-    if "FSK" in mod_upper:
+    if "AM" == mod_upper or "ASK" in mod_upper:
+        demod_res = demodulate_am(iq, mod_type=mod_upper, symbol_rate=symbol_rate)
+    elif "FM" == mod_upper:
+        demod_res = demodulate_fm(iq, mod_type=mod_upper, symbol_rate=symbol_rate)
+    elif "FSK" in mod_upper:
         demod_res = demodulate_fsk(iq, mod_type=mod_upper, symbol_rate=symbol_rate)
     elif "QAM" in mod_upper:
         demod_res = demodulate_qam(iq, mod_type=mod_upper, symbol_rate=symbol_rate)
     else:
         # Default to PSK (BPSK / QPSK / 8PSK)
         demod_res = demodulate_psk(iq, mod_type=mod_upper, symbol_rate=symbol_rate)
+
 
     symbols = demod_res["symbols"]
     bits = demod_res["bits"]

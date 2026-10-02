@@ -17,10 +17,8 @@ export default function DemodPanel({ result, modType }) {
 
   const bits         = r.bits ?? []
   const bitCount     = r.bit_count ?? bits.length
-  const constI       = r.constellation_i ?? []
-  const constQ       = r.constellation_q ?? []
-  const eyeI         = r.eye_diagram_i ?? []
-  const eyeTime      = r.eye_diagram_time ?? []
+  const constI       = r.constellation?.i ?? r.constellation_i ?? []
+  const constQ       = r.constellation?.q ?? r.constellation_q ?? []
 
   // Constellation scatter
   const constTrace = constI.length > 0 ? [{
@@ -31,18 +29,9 @@ export default function DemodPanel({ result, modType }) {
     marker: { color: '#00ff88', size: 2, opacity: 0.5 },
   }] : null
 
-  // Eye diagram
-  const eyeTrace = eyeI.length > 0 ? [{
-    x: eyeTime,
-    y: eyeI.slice(0, 2000),
-    type: 'scatter',
-    mode: 'lines',
-    line: { color: '#00b4ff', width: 0.5 },
-    opacity: 0.5,
-  }] : null
-
   // Bit histogram (first 256 bits preview)
   const preview = bits.slice(0, 128)
+
 
   return (
     <section className="space-y-4">
@@ -88,32 +77,16 @@ export default function DemodPanel({ result, modType }) {
             <Plot
               data={constTrace}
               layout={darkLayout({
-                xaxis: { ...darkLayout().xaxis, title: { text: 'I', standoff: 6 } },
-                yaxis: { ...darkLayout().yaxis, title: { text: 'Q', standoff: 6 } },
+                xaxis: { ...darkLayout().xaxis, title: { text: 'In-Phase (I)', standoff: 6 } },
+                yaxis: { ...darkLayout().yaxis, title: { text: 'Quadrature (Q)', standoff: 6 } },
               })}
               config={{ displayModeBar: false, responsive: true }}
               style={{ width: '100%', height: '220px' }}
             />
           </div>
         )}
-
-        {/* Eye diagram */}
-        {eyeTrace && (
-          <div className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <div className="text-xs font-bold tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>EYE DIAGRAM</div>
-            <Plot
-              data={eyeTrace}
-              layout={darkLayout({
-                xaxis: { ...darkLayout().xaxis, title: { text: 'Time', standoff: 6 } },
-                yaxis: { ...darkLayout().yaxis, title: { text: 'Amplitude', standoff: 6 } },
-              })}
-              config={{ displayModeBar: false, responsive: true }}
-              style={{ width: '100%', height: '220px' }}
-            />
-          </div>
-        )}
-
       </div>
     </section>
+
   )
 }

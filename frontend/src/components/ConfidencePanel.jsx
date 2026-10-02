@@ -10,11 +10,14 @@ export default function ConfidencePanel({ result }) {
   if (!result) return null
   const r = result.json_result ?? {}
 
-  const tier    = r.tier_code ?? 'C'
+  // Extract 'A', 'B', or 'C' from 'TIER_A' or 'A'
+  const rawTier = r.tier_code ?? (r.tier ? r.tier.replace(/Tier\s*([ABC]).*/i, '$1') : 'C')
+  const tier = rawTier.replace('TIER_', '').trim()
   const overall = r.overall_confidence ?? result.confidence ?? 0
-  const stageConf = r.stage_confidences ?? {}
+  const stageConf = r.stage_confidences ?? r.sub_scores ?? {}
   const cfg = TIER_CONFIG[tier] ?? TIER_CONFIG.C
   const TierIcon = cfg.icon
+
 
   return (
     <section className="space-y-4">

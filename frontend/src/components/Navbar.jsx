@@ -1,4 +1,5 @@
-import { Radio, RefreshCw, Activity } from 'lucide-react'
+import { Radio, RefreshCw, Activity, Download, FileText, Printer } from 'lucide-react'
+import { exportSigMF, getExportCsvUrl } from '../api/client'
 
 const phaseLabel = {
   idle: { text: 'STANDBY', color: 'var(--text-muted)' },
@@ -11,9 +12,31 @@ const phaseLabel = {
 export default function Navbar({ capture, job, phase, onReset }) {
   const status = phaseLabel[phase] || phaseLabel.idle
 
+  const handleDownloadSigMF = async () => {
+    if (!job?.id) return
+    try {
+      const res = await exportSigMF(job.id)
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `drishtirf_analysis_${(capture?.filename || 'capture').replace(/\.[^/.]+$/, '')}.sigmf-meta`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      alert('Failed to export SigMF: ' + e.message)
+    }
+  }
+
+  const handlePrintReport = () => {
+    window.print()
+  }
+
   return (
     <header style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
 
         {/* Logo */}
         <div className="flex items-center gap-3">
@@ -28,16 +51,13 @@ export default function Navbar({ capture, job, phase, onReset }) {
           </div>
         </div>
 
-        {/* Status bar */}
-        <div className="flex items-center gap-6">
+        {/* Status bar + Export actions */}
+        <div className="flex items-center gap-4 flex-wrap">
           {capture && (
             <div className="hidden md:block text-xs" style={{ color: 'var(--text-muted)' }}>
               <span style={{ color: 'var(--text-primary)' }}>{capture.filename}</span>
               {capture.sample_rate && (
                 <span className="ml-3">Fs: <span style={{ color: 'var(--accent-blue)' }}>{(capture.sample_rate / 1e6).toFixed(3)} MHz</span></span>
-              )}
-              {capture.n_samples && (
-                <span className="ml-3">N: <span style={{ color: 'var(--accent-blue)' }}>{capture.n_samples.toLocaleString()}</span></span>
               )}
             </div>
           )}
@@ -49,6 +69,42 @@ export default function Navbar({ capture, job, phase, onReset }) {
               {status.text}
             </span>
           </div>
+
+          {/* Export Buttons (when done) */}
+          {phase === 'done' && job?.id && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadSigMF}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-bold transition-all"
+                style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.4)', color: 'var(--accent-green)' }}
+                title="Download SigMF metadata specification (.sigmf-meta)"
+              >
+                <Download size={12} />
+                .SigMF
+              </button>
+
+              <a
+                href={getExportCsvUrl(job.id)}
+                download
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-bold transition-all"
+                style={{ background: 'rgba(0,180,255,0.1)', border: '1px solid rgba(0,180,255,0.4)', color: 'var(--accent-blue)' }}
+                title="Download extracted frame bitstreams as CSV"
+              >
+                <FileText size={12} />
+                .CSV
+              </a>
+
+              <button
+                onClick={handlePrintReport}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-bold transition-all"
+                style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.4)', color: '#a78bfa' }}
+                title="Print or save PDF Analysis Report"
+              >
+                <Printer size={12} />
+                PDF Report
+              </button>
+            </div>
+          )}
 
           {/* Reset button */}
           {phase !== 'idle' && (
@@ -72,3 +128,4 @@ export default function Navbar({ capture, job, phase, onReset }) {
     </header>
   )
 }
+

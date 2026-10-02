@@ -40,4 +40,11 @@ export const getJobFrames = (jobId) =>
 export const getCaptureSpectrum = (captureId) =>
   api.get(`/captures/${captureId}/spectrum`)
 
+export const exportSigMF = (jobId) =>
+  api.get(`/jobs/${jobId}/export/sigmf`)
+
+export const getExportCsvUrl = (jobId) =>
+  `/api/jobs/${jobId}/export/csv`
+
 export default api
+
