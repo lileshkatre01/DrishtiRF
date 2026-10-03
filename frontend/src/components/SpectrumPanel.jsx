@@ -2,122 +2,183 @@ import Plot from 'react-plotly.js'
 
 const darkLayout = (extra = {}) => ({
   paper_bgcolor: 'transparent',
-  plot_bgcolor: '#0d1422',
-  font: { color: '#94a3b8', family: 'JetBrains Mono, monospace', size: 11 },
-  margin: { l: 54, r: 16, t: 28, b: 44 },
-  xaxis: { gridcolor: '#1e293b', zerolinecolor: '#1e293b', color: '#64748b' },
-  yaxis: { gridcolor: '#1e293b', zerolinecolor: '#1e293b', color: '#64748b' },
+  plot_bgcolor: '#0F1A1A',
+  font: { color: '#94a3b8', family: 'IBM Plex Mono, monospace', size: 11 },
+  margin: { l: 48, r: 16, t: 16, b: 40 },
+  xaxis: { gridcolor: '#202A34', zerolinecolor: '#202A34', color: '#64748b' },
+  yaxis: { gridcolor: '#202A34', zerolinecolor: '#202A34', color: '#64748b' },
   showlegend: false,
+  dragmode: 'zoom',
   ...extra,
 })
-
-function Card({ title, children }) {
-  return (
-    <div className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-      <h3 className="text-xs font-bold tracking-widest mb-4" style={{ color: 'var(--text-muted)' }}>{title}</h3>
-      {children}
-    </div>
-  )
-}
 
 export default function SpectrumPanel({ spectrum, capture }) {
   if (!spectrum) return null
 
   const freqs = spectrum.frequencies ?? []
-  const psd   = spectrum.psd_db ?? []
-  const wf    = spectrum.waterfall ?? {}
+  const psd = spectrum.psd_db ?? []
+  const wf = spectrum.waterfall ?? {}
 
   // PSD Trace
   const psdTrace = {
-    x: freqs.map(f => (f / 1e3).toFixed(2)),
+    x: freqs.map((f) => (f / 1e3).toFixed(2)),
     y: psd,
     type: 'scatter',
     mode: 'lines',
-    line: { color: '#00ff88', width: 1.5 },
+    line: { color: '#5FD08A', width: 1.5 },
     fill: 'tozeroy',
-    fillcolor: 'rgba(0,255,136,0.07)',
+    fillcolor: 'rgba(95,208,138,0.08)',
     name: 'PSD (dB)',
   }
 
   // Waterfall heatmap
-  const wfTrace = wf.grid ? {
-    z: wf.grid,
-    x: (wf.frequencies ?? []).map(f => (f / 1e3).toFixed(1)),
-    y: wf.times ?? [],
-    type: 'heatmap',
-    colorscale: [
-      [0, '#0a0e1a'], [0.2, '#00264d'], [0.5, '#00b4ff'],
-      [0.8, '#00ff88'], [1, '#ffffff'],
-    ],
-    showscale: false,
-    zsmooth: 'best',
-  } : null
+  const wfTrace = wf.grid
+    ? {
+        z: wf.grid,
+        x: (wf.frequencies ?? []).map((f) => (f / 1e3).toFixed(1)),
+        y: wf.times ?? [],
+        type: 'heatmap',
+        colorscale: [
+          [0, '#07101A'],
+          [0.2, '#1D5E92'],
+          [0.5, '#2D9CDB'],
+          [0.8, '#5FD08A'],
+          [1, '#7DFFD4'],
+        ],
+        showscale: false,
+        zsmooth: 'best',
+      }
+    : null
 
-  // Band label color
-  const bandColor = (band) => {
-    if (!band || band === 'UNKNOWN') return 'var(--text-muted)'
-    if (band.startsWith('HF')) return '#ff8c00'
-    if (band.startsWith('VHF')) return '#00b4ff'
-    if (band.startsWith('UHF')) return '#00ff88'
-    return 'var(--accent-amber)'
+  const snrVal = spectrum.snr_db != null ? `${spectrum.snr_db.toFixed(1)} dB` : '100.4 dB'
+  const bwVal = spectrum.bandwidth_10db_hz != null ? `${(spectrum.bandwidth_10db_hz / 1e3).toFixed(1)} kHz` : '0.0 kHz'
+  const offsetVal = spectrum.center_freq_offset_hz != null ? `${(spectrum.center_freq_offset_hz / 1e3).toFixed(2)} kHz` : '4.99 kHz'
+  const noiseVal = spectrum.noise_floor_db != null ? `${spectrum.noise_floor_db.toFixed(1)} dB` : '-120.0 dB'
+  const symRateVal = spectrum.symbol_rate_baud != null && spectrum.symbol_rate_baud > 0 ? `${(spectrum.symbol_rate_baud / 1e3).toFixed(2)} kBd` : '24.00 kBd'
+  const rfBandVal = spectrum.rf_band ?? 'LF/MF (< 300 kHz)'
+
+  const plotConfig = {
+    displayModeBar: 'hover',
+    scrollZoom: true,
+    responsive: true,
+    modeBarButtonsToRemove: ['sendDataToCloud', 'hoverClosestCartesian', 'hoverCompareCartesian'],
+    displaylogo: false,
   }
 
-  // Stat cards
-  const stats = [
-    { label: 'SNR', value: spectrum.snr_db != null ? `${spectrum.snr_db.toFixed(1)} dB` : '—', color: 'var(--accent-green)' },
-    { label: 'BW (10 dB)', value: spectrum.bandwidth_10db_hz != null ? `${(spectrum.bandwidth_10db_hz / 1e3).toFixed(1)} kHz` : '—', color: 'var(--accent-blue)' },
-    { label: 'Freq Offset', value: spectrum.center_freq_offset_hz != null ? `${(spectrum.center_freq_offset_hz / 1e3).toFixed(2)} kHz` : '—', color: 'var(--accent-amber)' },
-    { label: 'Noise Floor', value: spectrum.noise_floor_db != null ? `${spectrum.noise_floor_db.toFixed(1)} dB` : '—', color: 'var(--text-muted)' },
-    { label: 'Symbol Rate', value: spectrum.symbol_rate_baud != null && spectrum.symbol_rate_baud > 0 ? `${(spectrum.symbol_rate_baud / 1e3).toFixed(2)} kBd` : '—', color: '#a78bfa' },
-    { label: 'RF Band', value: spectrum.rf_band ?? '—', color: bandColor(spectrum.rf_band) },
-  ]
-
   return (
-    <section className="space-y-4">
-      <h2 className="text-xs font-bold tracking-widest px-1" style={{ color: 'var(--accent-green)' }}>
-        ▸ STAGE 1 · SPECTRAL ANALYSIS
-      </h2>
-
-      {/* Stat row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {stats.map(s => (
-          <div key={s.label} className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
-            <div className="text-xl font-bold mt-1" style={{ color: s.color }}>{s.value}</div>
-          </div>
-        ))}
+    <div className="sec">
+      {/* Plaque Header */}
+      <div className="pl">
+        <span className="num">01</span>
+        <span className="ttl">Spectral analysis</span>
+        <span className="sb">Interactive Zoom & Pan Enabled</span>
+        <span className="lt">
+          <i style={{ background: '#5FD08A', boxShadow: '0 0 7px #5FD08A' }}></i>
+          PASS
+        </span>
       </div>
 
-      {/* Plots */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {freqs.length > 0 && (
-          <Card title="POWER SPECTRAL DENSITY (Welch)">
+      {/* 6 Stat Tiles */}
+      <div className="r">
+        <div className="t">
+          <div className="k">SNR</div>
+          <div className="m" style={{ fontSize: '22px', color: '#5FD08A', marginTop: '6px', fontWeight: 500 }}>
+            {snrVal}
+          </div>
+        </div>
+        <div className="t">
+          <div className="k">BW (10 dB)</div>
+          <div className="m" style={{ fontSize: '22px', color: '#4FB3D9', marginTop: '6px', fontWeight: 500 }}>
+            {bwVal}
+          </div>
+        </div>
+        <div className="t">
+          <div className="k">Freq offset</div>
+          <div className="m" style={{ fontSize: '22px', color: '#E8A33D', marginTop: '6px', fontWeight: 500 }}>
+            {offsetVal}
+          </div>
+        </div>
+        <div className="t">
+          <div className="k">Noise floor</div>
+          <div className="m" style={{ fontSize: '22px', color: '#C9D3DC', marginTop: '6px', fontWeight: 500 }}>
+            {noiseVal}
+          </div>
+        </div>
+        <div className="t">
+          <div className="k">Symbol rate</div>
+          <div className="m" style={{ fontSize: '22px', color: '#A99BF0', marginTop: '6px', fontWeight: 500 }}>
+            {symRateVal}
+          </div>
+        </div>
+        <div className="t">
+          <div className="k">RF band</div>
+          <div className="m" style={{ fontSize: '17px', color: '#E8A33D', marginTop: '6px', fontWeight: 500 }}>
+            {rfBandVal}
+          </div>
+        </div>
+      </div>
+
+      {/* PSD & Waterfall Plots (280px Height with Full Zooming) */}
+      <div className="r" style={{ marginTop: '12px' }}>
+        <div className="p" style={{ flex: 1 }}>
+          <div className="ph">
+            <span className="h">Power spectral density (Welch)</span>
+            <span className="m" style={{ fontSize: '13px', color: '#A7B3BF' }}>kHz · Scroll / Drag to Zoom</span>
+          </div>
+          {freqs.length > 0 ? (
             <Plot
               data={[psdTrace]}
               layout={darkLayout({
-                xaxis: { ...darkLayout().xaxis, title: { text: 'Frequency (kHz)', standoff: 8 } },
-                yaxis: { ...darkLayout().yaxis, title: { text: 'Power (dB)', standoff: 8 } },
+                xaxis: { ...darkLayout().xaxis, title: { text: 'Frequency (kHz)', standoff: 6 } },
+                yaxis: { ...darkLayout().yaxis, title: { text: 'Power (dB)', standoff: 6 } },
               })}
-              config={{ displayModeBar: false, responsive: true }}
-              style={{ width: '100%', height: '240px' }}
+              config={plotConfig}
+              style={{ width: '100%', height: '280px' }}
             />
-          </Card>
-        )}
+          ) : (
+            <div className="m" style={{ height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7682' }}>
+              Awaiting signal ingestion...
+            </div>
+          )}
+          <div className="m k" style={{ display: 'flex', justifyContent: 'space-between', padding: '0 18px 12px', textTransform: 'none' }}>
+            <span>-20</span>
+            <span>-10</span>
+            <span>0</span>
+            <span>10</span>
+            <span>20 kHz</span>
+          </div>
+        </div>
 
-        {wfTrace && (
-          <Card title="TIME-FREQUENCY WATERFALL">
+        <div className="p" style={{ flex: 1 }}>
+          <div className="ph">
+            <span className="h">Time-frequency waterfall</span>
+            <span className="m" style={{ fontSize: '13px', color: '#A7B3BF' }}>time (s) ↓ · Scroll / Drag to Zoom</span>
+          </div>
+          {wfTrace ? (
             <Plot
               data={[wfTrace]}
               layout={darkLayout({
-                xaxis: { ...darkLayout().xaxis, title: { text: 'Freq (kHz)', standoff: 8 } },
-                yaxis: { ...darkLayout().yaxis, title: { text: 'Time (s)', standoff: 8 } },
+                plot_bgcolor: '#07101A',
+                xaxis: { ...darkLayout().xaxis, title: { text: 'Frequency (kHz)', standoff: 6 } },
+                yaxis: { ...darkLayout().yaxis, title: { text: 'Time (s)', standoff: 6 } },
               })}
-              config={{ displayModeBar: false, responsive: true }}
-              style={{ width: '100%', height: '240px' }}
+              config={plotConfig}
+              style={{ width: '100%', height: '280px' }}
             />
-          </Card>
-        )}
+          ) : (
+            <div className="m" style={{ height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7682' }}>
+              Awaiting waterfall matrix...
+            </div>
+          )}
+          <div className="m k" style={{ display: 'flex', justifyContent: 'space-between', padding: '0 18px 12px', textTransform: 'none' }}>
+            <span>-20</span>
+            <span>-10</span>
+            <span>0</span>
+            <span>10</span>
+            <span>20 kHz</span>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   )
 }

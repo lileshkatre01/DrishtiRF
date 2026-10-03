@@ -1,97 +1,74 @@
-import { useCallback, useState } from 'react'
-import { Upload, FileAudio, AlertCircle } from 'lucide-react'
-
-const ACCEPTED = ['.iq', '.wav', '.sigmf-meta', '.sigmf']
+import { useRef, useState } from 'react'
 
 export default function UploadZone({ onFile, disabled }) {
   const [dragOver, setDragOver] = useState(false)
-  const [fileError, setFileError] = useState(null)
+  const inputRef = useRef(null)
 
-  const validate = (file) => {
-    const name = file.name.toLowerCase()
-    const ok = ACCEPTED.some(ext => name.endsWith(ext))
-    if (!ok) {
-      setFileError(`Unsupported format. Accepted: ${ACCEPTED.join(', ')}`)
-      return false
-    }
-    setFileError(null)
-    return true
-  }
-
-  const handle = useCallback((file) => {
-    if (!file || disabled) return
-    if (validate(file)) onFile(file)
-  }, [onFile, disabled])
-
-  const onDrop = (e) => {
+  const handleDrop = (e) => {
     e.preventDefault()
     setDragOver(false)
+    if (disabled) return
     const file = e.dataTransfer.files[0]
-    handle(file)
+    if (file) onFile(file)
   }
 
-  const onChange = (e) => {
+  const handleChange = (e) => {
     const file = e.target.files[0]
-    handle(file)
+    if (file) onFile(file)
   }
 
   return (
-    <div
-      className={`relative rounded-xl p-8 flex flex-col items-center justify-center gap-4 transition-all cursor-pointer ${dragOver ? 'drop-zone-active' : ''}`}
-      style={{
-        border: `2px dashed ${dragOver ? 'var(--accent-green)' : 'var(--border)'}`,
-        background: 'var(--bg-card)',
-        minHeight: '220px',
-        opacity: disabled ? 0.5 : 1,
-        pointerEvents: disabled ? 'none' : 'auto',
-      }}
-      onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={onDrop}
-      onClick={() => document.getElementById('file-input').click()}
-    >
+    <div className="p" style={{ flex: 1 }}>
       <input
-        id="file-input"
+        ref={inputRef}
         type="file"
-        accept=".iq,.wav,.sigmf-meta,.sigmf"
+        accept=".iq,.wav,.sigmf-meta,.sigmf,.bin,.dat"
         className="hidden"
-        onChange={onChange}
+        onChange={handleChange}
+        disabled={disabled}
       />
+      <div
+        className="b"
+        onClick={() => !disabled && inputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '36px 16px 20px',
+          border: `2px dashed ${dragOver ? '#E8A33D' : '#3A4652'}`,
+          margin: '16px',
+          borderRadius: '3px',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          background: dragOver ? 'rgba(232,163,61,0.05)' : 'transparent',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#4FB3D9" strokeWidth="1.6">
+          <path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4" />
+        </svg>
 
-      <div className="p-4 rounded-full" style={{ background: 'rgba(0,180,255,0.1)', border: '1px solid rgba(0,180,255,0.3)' }}>
-        <Upload size={28} style={{ color: 'var(--accent-blue)' }} />
-      </div>
-
-      <div className="text-center">
-        <p className="font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>
+        <div style={{ fontWeight: 600, letterSpacing: '.1em', fontSize: '14.5px', color: '#fff' }}>
           DROP SIGNAL FILE
-        </p>
-        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-          or click to browse
-        </p>
-      </div>
-
-      {/* Accepted formats */}
-      <div className="flex flex-wrap justify-center gap-2 mt-1">
-        {ACCEPTED.map(ext => (
-          <span key={ext} className="px-2 py-0.5 rounded text-xs font-bold tracking-wider"
-            style={{ background: 'rgba(0,180,255,0.08)', border: '1px solid rgba(0,180,255,0.2)', color: 'var(--accent-blue)' }}>
-            <FileAudio size={10} className="inline mr-1" />
-            {ext.toUpperCase()}
-          </span>
-        ))}
-      </div>
-
-      {fileError && (
-        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--accent-red)' }}>
-          <AlertCircle size={14} />
-          {fileError}
         </div>
-      )}
+        <div className="m k" style={{ textTransform: 'none', color: '#A7B3BF' }}>
+          or click to browse
+        </div>
 
-      <p className="text-xs absolute bottom-3 right-4" style={{ color: 'var(--text-muted)' }}>
-        Raw IQ · WAV Stereo · SigMF
-      </p>
+        <div className="r" style={{ marginTop: '6px' }}>
+          <span className="m" style={{ border: '1px solid #3A4652', padding: '4px 8px', fontSize: '13px', color: '#C9D3DC' }}>.IQ</span>
+          <span className="m" style={{ border: '1px solid #3A4652', padding: '4px 8px', fontSize: '13px', color: '#C9D3DC' }}>.WAV</span>
+          <span className="m" style={{ border: '1px solid #3A4652', padding: '4px 8px', fontSize: '13px', color: '#C9D3DC' }}>.SIGMF-META</span>
+          <span className="m" style={{ border: '1px solid #3A4652', padding: '4px 8px', fontSize: '13px', color: '#C9D3DC' }}>.SIGMF</span>
+        </div>
+
+        <div className="m k" style={{ textTransform: 'none', marginTop: '10px', color: '#6B7682' }}>
+          Raw IQ · WAV stereo · SigMF
+        </div>
+      </div>
     </div>
   )
 }

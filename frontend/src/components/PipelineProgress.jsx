@@ -1,96 +1,80 @@
-import { CheckCircle, Circle, Loader, XCircle, AlertCircle } from 'lucide-react'
-
-const STAGE_LABELS = {
-  SPECTRAL: 'Spectral Analysis',
-  AMC: 'Modulation Classification',
-  DEMOD: 'Demodulation',
-  JOINT_SEARCH: 'De-interleave + FEC',
-  CORRELATION: 'Sync Correlation',
-  CONFIDENCE_EVALUATION: 'Confidence Evaluation',
-}
-
-function StageRow({ name, jobStage, phase }) {
-  const stages = Object.keys(STAGE_LABELS)
-  const thisIdx = stages.indexOf(name)
-  const activeIdx = stages.indexOf(jobStage)
-
-  let icon, color
-  if (phase === 'done') {
-    icon = <CheckCircle size={14} />; color = 'var(--accent-green)'
-  } else if (thisIdx < activeIdx) {
-    icon = <CheckCircle size={14} />; color = 'var(--accent-green)'
-  } else if (thisIdx === activeIdx) {
-    icon = <Loader size={14} className="animate-spin" />; color = 'var(--accent-amber)'
-  } else {
-    icon = <Circle size={14} />; color = 'var(--text-muted)'
-  }
-
-  return (
-    <div className="flex items-center gap-3 py-1.5">
-      <span style={{ color }}>{icon}</span>
-      <span className="text-xs tracking-wide" style={{ color: thisIdx <= activeIdx || phase === 'done' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-        {STAGE_LABELS[name]}
-      </span>
-    </div>
-  )
-}
-
 export default function PipelineProgress({ phase, progress, job, stages, error }) {
-  return (
-    <div className="rounded-xl p-6 flex flex-col gap-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+  const isDone = phase === 'done'
+  const isError = phase === 'error'
+  const pct = isDone ? 100 : Math.round(progress || 0)
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold tracking-widest" style={{ color: 'var(--text-muted)' }}>PIPELINE STATUS</span>
-        <span className="text-xs font-bold" style={{ color: 'var(--accent-green)' }}>
-          {progress}%
+  // Number of active green segments (out of 30)
+  const activeSegments = Math.round((pct / 100) * 30)
+
+  const STAGE_NAMES = [
+    { key: 'SPECTRAL', name: 'Spectral Analysis' },
+    { key: 'AMC', name: 'Modulation Classification' },
+    { key: 'DEMOD', name: 'Demodulation' },
+    { key: 'JOINT_SEARCH', name: 'De-interleave + FEC' },
+    { key: 'CORRELATION', name: 'Sync Correlation' },
+    { key: 'CONFIDENCE_EVALUATION', name: 'Confidence Evaluation' },
+  ]
+
+  return (
+    <div className="p" style={{ flex: 1 }}>
+      <div className="ph">
+        <span className="h">Pipeline status</span>
+        <span className="m" style={{ fontSize: '13px', color: '#A7B3BF' }}>
+          {pct}%
         </span>
       </div>
 
-      {/* Progress bar */}
-      <div className="relative h-2 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-        {(phase === 'uploading' || phase === 'processing') && progress < 100 ? (
-          <div
-            className="progress-shimmer h-full rounded-full transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        ) : (
-          <div
-            className="h-full rounded-full transition-all duration-700"
-            style={{
-              width: `${progress}%`,
-              background: phase === 'error' ? 'var(--accent-red)' : 'var(--accent-green)'
-            }}
-          />
-        )}
-      </div>
-
-      {/* Stage list */}
-      <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-        {stages.map(s => (
-          <StageRow key={s} name={s} jobStage={job?.stage ?? ''} phase={phase} />
-        ))}
-      </div>
-
-      {/* Error message */}
-      {error && (
-        <div className="flex items-start gap-2 mt-2 p-3 rounded-lg text-xs" style={{ background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', color: 'var(--accent-red)' }}>
-          <AlertCircle size={14} className="shrink-0 mt-0.5" />
-          <span>{error}</span>
+      <div className="b">
+        {/* 30-Segmented Progress Bar */}
+        <div style={{ display: 'flex', gap: '2px' }}>
+          {Array.from({ length: 30 }).map((_, i) => (
+            <i
+              key={i}
+              style={{
+                flex: 1,
+                height: '14px',
+                background: i < activeSegments ? (isError ? '#F0605D' : '#5FD08A') : '#1C232B',
+                borderRadius: '1px',
+                transition: 'background 0.2s ease',
+              }}
+            />
+          ))}
         </div>
-      )}
 
-      {phase === 'idle' && (
-        <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
-          Upload a signal file to begin analysis
-        </p>
-      )}
-
-      {phase === 'done' && (
-        <div className="flex items-center gap-2 text-xs font-bold" style={{ color: 'var(--accent-green)' }}>
-          <CheckCircle size={14} />
-          Analysis complete — all stages passed
+        {/* Stage Checklist */}
+        <div style={{ marginTop: '8px' }}>
+          {STAGE_NAMES.map((s, idx) => {
+            const isPassed = isDone || (job?.progress && job.progress >= (idx + 1) * 16)
+            return (
+              <div
+                key={s.key}
+                style={{
+                  display: 'flex',
+                  gap: '10px',
+                  alignItems: 'center',
+                  padding: '7px 0',
+                  borderBottom: idx < STAGE_NAMES.length - 1 ? '1px solid #1F2832' : 'none',
+                  fontSize: '14px',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke={isPassed ? '#5FD08A' : '#4A5560'} strokeWidth="1.8">
+                  <circle cx="7" cy="7" r="6" />
+                  {isPassed && <path d="M4 7l2 2 4-4" />}
+                </svg>
+                <span style={{ color: isPassed ? '#E4EAF0' : '#A7B3BF' }}>{s.name}</span>
+                <span className="m" style={{ marginLeft: 'auto', fontSize: '13px', color: isPassed ? '#5FD08A' : '#4A5560' }}>
+                  {isPassed ? 'PASS' : 'WAIT'}
+                </span>
+              </div>
+            )
+          })}
         </div>
-      )}
+
+        {/* Footer Status Message */}
+        <div className="m" style={{ fontSize: '13px', color: isError ? '#F0605D' : isDone ? '#5FD08A' : '#E8A33D', marginTop: '10px' }}>
+          {isError ? `Error: ${error}` : isDone ? 'Analysis complete — all stages passed' : 'Processing pipeline stages...'}
+        </div>
+      </div>
     </div>
   )
 }

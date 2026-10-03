@@ -1,16 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #0a0e1a;
-  --bg-secondary: #111827;
-  --bg-card: #1a2235;
-  --accent-green: #00ff88;
-  --accent-blue: #00b4ff;
-  --accent-amber: #ffb300;
-  --accent-red: #ff4444;
-  --text-primary: #e2e8f0;
-  --text-muted: #64748b;
-  --border: #1e293b;
+  --bg-desk: #D3D9E0;
+  --bg-primary: #0A0D11;
+  --bg-secondary: #12171D;
+  --bg-card: #151A21;
+  --bg-tile: #1A2028;
+  --accent-gold: #E8A33D;
+  --accent-green: #5FD08A;
+  --accent-blue: #4FB3D9;
+  --accent-purple: #A99BF0;
+  --accent-red: #F0605D;
+  --text-primary: #E4EAF0;
+  --text-muted: #A7B3BF;
+  --text-dim: #6B7682;
+  --border-dark: #262F39;
+  --border-light: #3A4652;
 }
 
 * {
@@ -19,62 +24,269 @@
 
 body {
   margin: 0;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  background-color: var(--bg-desk);
+  color: #14181D;
+  font-family: 'Barlow', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
-
-/* Glowing border animation for active states */
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 4px var(--accent-green); }
-  50%       { box-shadow: 0 0 16px var(--accent-green), 0 0 32px rgba(0,255,136,0.3); }
+/* Skeuomorphic Defense Tactile Buttons */
+button {
+  font-family: 'Barlow', sans-serif !important;
+  cursor: pointer;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  padding: 7px 13px;
+  border-radius: 2px;
+  border-style: solid;
+  border-width: 2px;
+  background: #E3E7EB;
+  border-color: #fff #5E6975 #5E6975 #fff;
+  box-shadow: inset -1px -1px 0 #9AA5B1, inset 1px 1px 0 #F5F7F9, 0 1px 0 #14181D;
+  color: #14181D;
+  transition: all 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
-.glow-green { animation: glow-pulse 2s ease-in-out infinite; }
-
-@keyframes scanline {
-  0%   { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
+button:active {
+  border-color: #5E6975 #fff #fff #5E6975;
+  box-shadow: inset 1px 1px 0 #9AA5B1;
 }
 
-.scanline::after {
+button.pri {
+  background: #E8A33D;
+  border-color: #FAD9A0 #7A4E08 #7A4E08 #FAD9A0;
+  box-shadow: inset -1px -1px 0 #B87A1C, inset 1px 1px 0 #F6C876, 0 1px 0 #14181D;
+  color: #1A1204;
+}
+
+/* Base Panel & Section Styles */
+.sec {
+  margin-top: 16px;
+  background: #0A0D11;
+  color: #E4EAF0;
+  padding: 14px;
+  border-radius: 3px;
+  border: 1px solid #000;
+  box-shadow: 0 2px 0 #9AA5B1, 0 0 0 1px #6B7682;
+  min-width: 0;
+}
+
+.sec > .p {
+  background: none;
+  border: 0;
+}
+
+.sec > .p > .b {
+  padding: 0;
+}
+
+.sec > .p .ph {
+  display: none;
+}
+
+.sec .p {
+  background: #12171D;
+  border: 1px solid #2A333D;
+}
+
+.sec .t {
+  background: #1A2028;
+}
+
+/* Plaque Header (.pl) with Rivets and Golden Badge */
+.pl {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -14px -14px 14px;
+  padding: 10px 32px;
+  background: #1B222A;
+  border-bottom: 2px solid #E8A33D;
+  border-radius: 3px 3px 0 0;
+}
+
+.pl::before,
+.pl::after {
   content: '';
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(transparent, rgba(0,255,136,0.06), transparent);
-  animation: scanline 8s linear infinite;
-  pointer-events: none;
-  z-index: 9999;
+  position: absolute;
+  top: 50%;
+  margin-top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #59646F;
+  box-shadow: inset 1px 1px 0 #9AA5B1, 0 1px 0 #000;
 }
 
-/* Progress bar animation */
-@keyframes progress-shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+.pl::before {
+  left: 10px;
 }
 
-.progress-shimmer {
-  background: linear-gradient(90deg, #00ff88 0%, #00b4ff 50%, #00ff88 100%);
-  background-size: 200% 100%;
-  animation: progress-shimmer 1.5s ease-in-out infinite;
+.pl::after {
+  right: 10px;
 }
 
-/* Tier badge */
-.tier-a { color: #00ff88; border-color: #00ff88; background: rgba(0,255,136,0.1); }
-.tier-b { color: #ffb300; border-color: #ffb300; background: rgba(255,179,0,0.1); }
-.tier-c { color: #ff4444; border-color: #ff4444; background: rgba(255,68,68,0.1); }
+.num {
+  background: #E8A33D;
+  color: #1A1204;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  box-shadow: inset 1px 1px 0 #F6C876, inset -1px -1px 0 #B87A1C;
+}
 
-/* Drop zone */
-.drop-zone-active {
-  border-color: var(--accent-green) !important;
-  background: rgba(0,255,136,0.04) !important;
-  box-shadow: 0 0 24px rgba(0,255,136,0.15);
+.ttl {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: .1em !important;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.sb {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px !important;
+  color: #A7B3BF;
+}
+
+.lt {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px !important;
+  color: #E4EAF0;
+  letter-spacing: .06em;
+}
+
+.lt i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Panels, Sub-headers and Blocks */
+.p {
+  background: #0A0D11;
+  color: #E4EAF0;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ph {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #1B222A;
+  border-bottom: 1px solid #2A333D;
+}
+
+.h, .k {
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  letter-spacing: .1em !important;
+  text-transform: uppercase !important;
+  color: #B4C0CB !important;
+}
+
+.m {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.t {
+  background: #151A21;
+  border: 1px solid #262F39;
+  padding: 12px 14px;
+  flex: 1;
+  min-width: 0;
+  border-radius: 2px;
+}
+
+.b {
+  padding: 16px;
+}
+
+.r {
+  display: flex;
+  gap: 12px;
+}
+
+/* Evaluated Chips */
+.cp {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px !important;
+  padding: 4px 9px;
+  border: 1px solid #3A4652;
+  color: #C9D3DC;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.cs {
+  background: #E8A33D;
+  border-color: #E8A33D;
+  color: #1A1204;
+  font-weight: 600;
+}
+
+/* 7-Stage Progression Node */
+.nd {
+  position: relative;
+  flex: 1;
+  background: #1A2028;
+  border: 1px solid #262F39;
+  padding: 10px 12px;
+  border-radius: 2px;
+}
+
+.nd i {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ar {
+  align-self: center;
+  color: #E8A33D;
+  font-size: 22px;
+  padding: 0 6px;
+}
+
+/* Warning / Hazard Pattern */
+.hz {
+  height: 8px;
+  border-bottom: 1px solid #000;
+  background: repeating-linear-gradient(-45deg, #E8A33D 0 12px, #14181D 12px 24px);
+}
+
+/* Print optimizations */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .sec {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+  button {
+    display: none !important;
+  }
 }
