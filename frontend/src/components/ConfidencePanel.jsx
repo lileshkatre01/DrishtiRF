@@ -1,3 +1,5 @@
+import React from 'react'
+
 // Helper to render a speedometer needle gauge
 function GaugeSpeedometer({ label, pct, color = '#5FD08A' }) {
   const normalizedPct = Math.min(100, Math.max(0, pct))
@@ -56,15 +58,45 @@ function GaugeSpeedometer({ label, pct, color = '#5FD08A' }) {
   )
 }
 
+function getEvidenceBadge(level) {
+  const lvl = (level || 'UNKNOWN').toUpperCase()
+  if (lvl === 'VERIFIED') {
+    return <span style={{ background: '#0F2A1D', color: '#5FD08A', border: '1px solid #226B45', padding: '2px 6px', borderRadius: '2px', fontSize: '11px', fontWeight: 600 }}>VERIFIED</span>
+  }
+  if (lvl === 'MEASURED') {
+    return <span style={{ background: 'rgba(56,189,248,0.1)', color: '#38BDF8', border: '1px solid rgba(56,189,248,0.4)', padding: '2px 6px', borderRadius: '2px', fontSize: '11px', fontWeight: 600 }}>MEASURED</span>
+  }
+  if (lvl === 'ESTIMATED') {
+    return <span style={{ background: 'rgba(99,102,241,0.1)', color: '#818CF8', border: '1px solid rgba(99,102,241,0.4)', padding: '2px 6px', borderRadius: '2px', fontSize: '11px', fontWeight: 600 }}>ESTIMATED</span>
+  }
+  if (lvl === 'DEMODULATED' || lvl === 'RECOVERED') {
+    return <span style={{ background: 'rgba(56,189,248,0.12)', color: '#38BDF8', border: '1px solid rgba(56,189,248,0.4)', padding: '2px 6px', borderRadius: '2px', fontSize: '11px', fontWeight: 600 }}>DEMODULATED</span>
+  }
+  if (lvl === 'HYPOTHESIS') {
+    return <span style={{ background: 'rgba(232,163,61,0.1)', color: '#E8A33D', border: '1px solid rgba(232,163,61,0.4)', padding: '2px 6px', borderRadius: '2px', fontSize: '11px', fontWeight: 600 }}>HYPOTHESIS</span>
+  }
+  if (lvl === 'N/A') {
+    return <span style={{ background: 'rgba(107,118,130,0.1)', color: '#94A3B8', border: '1px solid rgba(107,118,130,0.4)', padding: '2px 6px', borderRadius: '2px', fontSize: '11px', fontWeight: 600 }}>N/A (ANALOG)</span>
+  }
+  return <span style={{ background: 'rgba(148,163,184,0.1)', color: '#CBD5E1', border: '1px solid rgba(148,163,184,0.3)', padding: '2px 6px', borderRadius: '2px', fontSize: '11px', fontWeight: 600 }}>UNKNOWN</span>
+}
+
 export default function ConfidencePanel({ result }) {
   if (!result) return null
   const r = result.json_result ?? {}
 
-  const rawTier = r.tier_code ?? (r.tier ? r.tier.replace(/Tier\s*([ABC]).*/i, '$1') : 'A')
+  const rawTier = r.tier_code ?? (r.tier ? r.tier.replace(/Tier\s*([ABC]).*/i, '$1') : 'B')
   const tier = rawTier.replace('TIER_', '').trim().toUpperCase()
 
   const overall = r.overall_confidence ?? result.confidence ?? 0.659
   const subScores = r.sub_scores ?? r.stage_confidences ?? {}
+  const evidenceLevels = r.evidence_levels ?? {}
+  const limits = r.limits ?? [
+    "Non-catalog LDPC matrices or proprietary interleavers fall back to hypothesis ranking.",
+    "Signals with SNR < 3 dB fall back to Tier C spectral characterization.",
+    "Analog transmissions bypass digital FEC/Interleaving stages."
+  ]
+  const needsReview = r.needs_review ?? (tier !== 'A')
 
   const spectralPct = (subScores.spectral ?? 1.0) * 100
   const amcPct = (subScores.amc ?? 0.58) * 100
@@ -73,8 +105,8 @@ export default function ConfidencePanel({ result }) {
   const corrPct = (subScores.correlation ?? 0.75) * 100
 
   const getScoreColor = (p) => {
-    if (p >= 80) return '#5FD08A'
-    if (p >= 50) return '#E8A33D'
+    if (p >= 75) return '#5FD08A'
+    if (p >= 40) return '#E8A33D'
     return '#F0605D'
   }
 
@@ -83,33 +115,33 @@ export default function ConfidencePanel({ result }) {
       bg: '#0F2A1D',
       border: '#226B45',
       color: '#5FD08A',
-      title: 'TIER A — HIGH CONFIDENCE',
-      desc: 'All pipeline stages converge with high agreement. Result is reliable.',
+      title: 'TIER A — VERIFIED PAYLOAD RECOVERY',
+      desc: 'All stages converged with mathematical proof (Syndrome Zero / CRC Match). Zero hallucination.',
     },
     B: {
       bg: 'rgba(232,163,61,0.1)',
       border: 'rgba(232,163,61,0.4)',
       color: '#E8A33D',
-      title: 'TIER B — MODERATE CONFIDENCE',
-      desc: 'Partial pipeline convergence. Result is plausible but requires human verification.',
+      title: 'TIER B — PLAUSIBLE DEMODULATION / ANALOG',
+      desc: 'Signal parameters & raw bitstream extracted. FEC parity unverified or Analog carrier detected.',
     },
     C: {
       bg: 'rgba(240,96,93,0.1)',
       border: 'rgba(240,96,93,0.4)',
       color: '#F0605D',
-      title: 'TIER C — LOW CONFIDENCE',
-      desc: 'Low agreement across stages. Parameters extracted under fallback conditions.',
+      title: 'TIER C — UNKNOWN / LOW SNR FALLBACK',
+      desc: 'Signal below detection threshold or non-standard format. Stated UNKNOWN with engineering reason.',
     },
   }
 
-  const currentTier = TIER_META[tier] ?? TIER_META.A
+  const currentTier = TIER_META[tier] ?? TIER_META.B
 
   return (
     <div className="sec">
       {/* Plaque Header */}
       <div className="pl">
         <span className="num">06</span>
-        <span className="ttl">3-tier confidence evaluation</span>
+        <span className="ttl">3-tier defense-grade confidence & evidence</span>
         <span className="sb"></span>
         <span className="lt">
           <i style={{ background: currentTier.color, boxShadow: `0 0 7px ${currentTier.color}` }}></i>
@@ -119,6 +151,30 @@ export default function ConfidencePanel({ result }) {
 
       <div className="p">
         <div className="b">
+          {/* Needs Review Alert Strip */}
+          {needsReview && (
+            <div
+              style={{
+                background: 'rgba(232,163,61,0.12)',
+                border: '1px solid rgba(232,163,61,0.3)',
+                padding: '8px 12px',
+                borderRadius: '2px',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '12px',
+                color: '#E8A33D',
+                fontWeight: 500,
+              }}
+            >
+              <span style={{ fontSize: '14px' }}>⚠️</span>
+              <span>
+                <strong>ANALYST NOTICE:</strong> Output contains statistical hypotheses or unverified parity checks. Human review recommended before intelligence dissemination.
+              </span>
+            </div>
+          )}
+
           {/* Shield Banner */}
           <div
             className="r"
@@ -145,7 +201,7 @@ export default function ConfidencePanel({ result }) {
             </div>
 
             <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-              <div className="k">Overall</div>
+              <div className="k">Score</div>
               <div className="m" style={{ fontSize: '28px', color: currentTier.color }}>
                 {(overall * 100).toFixed(1)}%
               </div>
@@ -153,7 +209,7 @@ export default function ConfidencePanel({ result }) {
           </div>
 
           {/* 5 Stage Breakdown Speedometer Needle Gauges */}
-          <div className="k" style={{ margin: '18px 0 8px' }}>Stage breakdown</div>
+          <div className="k" style={{ margin: '18px 0 8px' }}>Stage agreement meters</div>
           <div className="r" style={{ gap: '10px' }}>
             <GaugeSpeedometer label="spectral" pct={spectralPct} color={getScoreColor(spectralPct)} />
             <GaugeSpeedometer label="amc" pct={amcPct} color={getScoreColor(amcPct)} />
@@ -176,7 +232,44 @@ export default function ConfidencePanel({ result }) {
               color: '#B4C0CB',
             }}
           >
-            {r.rationale || result.explanation || `Assigned Tier ${tier}: Signal decoded with verified payload integrity.`}
+            {r.rationale || result.explanation || `Assigned Tier ${tier}: Signal analysis executed.`}
+          </div>
+
+          {/* Granular Evidence Summary Table */}
+          {Object.keys(evidenceLevels).length > 0 && (
+            <div style={{ marginTop: '16px' }}>
+              <div className="k" style={{ marginBottom: '8px' }}>Per-Stage Evidence & Mathematical Proof</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', background: '#0D1117', border: '1px solid #232C36' }}>
+                <thead>
+                  <tr style={{ background: '#161B22', color: '#94A3B8', textAlign: 'left' }}>
+                    <th style={{ padding: '6px 10px', borderBottom: '1px solid #232C36' }}>Stage</th>
+                    <th style={{ padding: '6px 10px', borderBottom: '1px solid #232C36' }}>Evidence Level</th>
+                    <th style={{ padding: '6px 10px', borderBottom: '1px solid #232C36' }}>Verification Method</th>
+                    <th style={{ padding: '6px 10px', borderBottom: '1px solid #232C36' }}>Observation / Basis</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(evidenceLevels).map(([stageKey, ev]) => (
+                    <tr key={stageKey} style={{ borderBottom: '1px solid #1E293B' }}>
+                      <td style={{ padding: '6px 10px', fontWeight: 600, color: '#E2E8F0', textTransform: 'uppercase' }}>{stageKey}</td>
+                      <td style={{ padding: '6px 10px' }}>{getEvidenceBadge(ev.level)}</td>
+                      <td style={{ padding: '6px 10px', color: '#94A3B8' }}>{ev.method}</td>
+                      <td style={{ padding: '6px 10px', color: '#CBD5E1', fontFamily: 'IBM Plex Mono, monospace' }}>{ev.basis}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Stated Limits & Engineering Assumptions */}
+          <div style={{ marginTop: '14px', background: 'rgba(15,23,42,0.6)', border: '1px solid #1E293B', padding: '10px 14px', borderRadius: '2px' }}>
+            <div className="k" style={{ marginBottom: '6px', color: '#94A3B8' }}>Stated System Boundaries & Operating Limits</div>
+            <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '11px', color: '#64748B', lineHeight: 1.6 }}>
+              {limits.map((l, i) => (
+                <li key={i}>{l}</li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>

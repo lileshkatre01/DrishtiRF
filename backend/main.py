@@ -29,6 +29,7 @@ app.include_router(upload.router, prefix=settings.API_V1_STR)
 app.include_router(results.router, prefix=settings.API_V1_STR)
 app.include_router(ws.router, prefix=settings.API_V1_STR)
 
+@app.get("/")
 @app.get("/api")
 def root():
     return {

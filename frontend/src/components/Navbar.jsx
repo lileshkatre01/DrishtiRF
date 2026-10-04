@@ -36,19 +36,27 @@ export default function Navbar({ capture, job, phase, onReset }) {
   const fsMHz = capture?.sample_rate ? (capture.sample_rate / 1e6).toFixed(3) : '0.048'
 
   return (
-    <header style={{ height: '60px', display: 'flex', alignItems: 'center', gap: '16px', padding: '0 24px', background: '#fff', borderBottom: '1px solid #D3D9E0' }}>
-      {/* Brand Icon */}
-      <svg width="30" height="30" viewBox="0 0 22 22" fill="none" stroke="#B86E00" strokeWidth="1.8">
-        <path d="M1 11h4l2-7 4 14 3-10 2 3h5" />
-      </svg>
+    <header style={{ height: '68px', display: 'flex', alignItems: 'center', gap: '16px', padding: '0 24px', background: '#0C121A', borderBottom: '1px solid #1E2836', color: '#fff' }}>
+      {/* Brand Icon (Eye Logo from Image 2) */}
+      <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#0A1017', border: '1px solid #223145', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 12px rgba(0,0,0,0.5)', shrink: 0 }}>
+        <svg width="34" height="26" viewBox="0 0 34 26" fill="none">
+          {/* Outer Golden/Orange Eye Outline */}
+          <path d="M2 13C7 5.5 17 5.5 32 13C25 20.5 15 20.5 2 13Z" stroke="#E8A33D" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Inner Iris Circle (Cyan) */}
+          <circle cx="17" cy="13" r="6" stroke="#38BDF8" strokeWidth="2.2" fill="#0A1017" />
+          {/* Pupil Signal Waveform (White) */}
+          <path d="M13.2 13h1.6l1.2-3.2 1.6 6.4 1.2-3.2h1.6" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
 
-      {/* Brand Titles */}
+      {/* Brand Titles (DRISHTI in White + RF in Golden/Orange) */}
       <div>
-        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '28px', letterSpacing: '.16em', lineHeight: 1 }}>
-          DRISHTIRF
+        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '32px', letterSpacing: '.14em', lineHeight: 1 }}>
+          <span style={{ color: '#FFFFFF' }}>DRISHTI</span>
+          <span style={{ color: '#E8A33D' }}>RF</span>
         </div>
-        <div className="m" style={{ fontSize: '12.5px', color: '#4A5560', letterSpacing: '.06em' }}>
-          SIGINT ANALYSIS PLATFORM · SIH 2026 PS-26147
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '10.5px', color: '#7D8A99', letterSpacing: '.38em', marginTop: '3px', fontWeight: 500, textTransform: 'uppercase' }}>
+          SIGINT ANALYSIS PLATFORM
         </div>
       </div>
 
@@ -60,7 +68,7 @@ export default function Navbar({ capture, job, phase, onReset }) {
           </span>
         )}
 
-        <span className="m" style={{ fontSize: '13.5px', color: '#4A5560' }}>
+        <span className="m" style={{ fontSize: '13.5px', color: '#94A3B8' }}>
           Fs: {fsMHz} MHz
         </span>
 

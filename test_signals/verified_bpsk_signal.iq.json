@@ -1,0 +1,10 @@
+{
+  "ground_truth_mod": "BPSK",
+  "format": "cf32",
+  "sample_rate": 1000000.0,
+  "symbol_rate": 50000.0,
+  "payload_text": "NTRO-MISSION-2026",
+  "sync_word": "Barker-13",
+  "fec": "Viterbi (Rate 1/2, K=7)",
+  "expected_tier": "TIER_A"
+}

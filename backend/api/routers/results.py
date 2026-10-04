@@ -99,26 +99,61 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
         job.stage = "DEMOD"
 
         # 3. DEMOD Stage
+        is_analog = bool(amc_res.get("is_analog", False) or amc_res.get("family") == "ANALOG")
         mod_type = amc_res.get("modulation", "QPSK")
         symbol_rate = amc_res.get("symbol_rate_baud", 100e3) or 100e3
-        demod_res = demodulate_signal(clean_iq, mod_type=mod_type, symbol_rate=symbol_rate)
 
-        explanation_demod = f"Demodulated {mod_type} stream into {demod_res['bit_count']} raw encoded bits. Constellation and eye-diagram generated."
+        if is_analog:
+            demod_res = {
+                "modulation": mod_type,
+                "bit_count": 0,
+                "bits": [],
+                "is_analog": True,
+                "constellation": {"I": [], "Q": []},
+                "explanation": f"Demodulated {mod_type} analog audio baseband signal. Digital bit slicing bypassed."
+            }
+            joint_res = {
+                "best_interleaver": "N/A (Analog Carrier)",
+                "best_fec": "N/A (Analog Carrier)",
+                "syndrome_zero": False,
+                "fec_status": "N/A",
+                "evidence_level": "N/A",
+                "confidence": 0.0,
+                "decoded_bits": [],
+                "explanation": "Analog transmission detected — digital FEC and de-interleaver search skipped."
+            }
+            corr_res = {
+                "sync_found": False,
+                "best_sync_word": "None",
+                "is_periodic": False,
+                "frame_count": 0,
+                "frames": [],
+                "evidence_level": "N/A",
+                "confidence": 0.0,
+                "explanation": "Analog transmission — packet framing and sync search not applicable."
+            }
+        else:
+            demod_res = demodulate_signal(clean_iq, mod_type=mod_type, symbol_rate=symbol_rate)
+            raw_bits = demod_res.get("bits", [])
+            joint_res = search_joint_deinterleave_fec(raw_bits)
+            decoded_bits = joint_res.get("decoded_bits", [])
+            if len(decoded_bits) == 0:
+                decoded_bits = raw_bits
+            corr_res = correlate_bitstream(decoded_bits, file_name=capture.filename)
+
+        explanation_demod = f"Demodulated {mod_type} stream into {demod_res['bit_count']} raw encoded bits." if not is_analog else demod_res["explanation"]
         stage_demod = StageResult(
             job_id=job.id,
             stage="DEMOD",
             json_result=demod_res,
-            confidence=0.95 if demod_res["bit_count"] > 0 else 0.0,
+            confidence=0.95 if demod_res["bit_count"] > 0 else (0.85 if is_analog else 0.0),
             explanation=explanation_demod
         )
         db.add(stage_demod)
         job.progress = 60.0
         job.stage = "JOINT_SEARCH"
 
-        # 4. JOINT_SEARCH Stage (Core Novelty)
-        raw_bits = demod_res.get("bits", [])
-        joint_res = search_joint_deinterleave_fec(raw_bits)
-
+        # 4. JOINT_SEARCH Stage
         stage_joint = StageResult(
             job_id=job.id,
             stage="JOINT_SEARCH",
@@ -131,12 +166,6 @@ def create_job(job_in: JobCreate, db: Session = Depends(get_db)):
         job.stage = "CORRELATION"
 
         # 5. CORRELATION & FRAMING Stage
-        decoded_bits = joint_res.get("decoded_bits", [])
-        if len(decoded_bits) == 0:
-            decoded_bits = raw_bits
-
-        corr_res = correlate_bitstream(decoded_bits)
-
         stage_corr = StageResult(
             job_id=job.id,
             stage="CORRELATION",

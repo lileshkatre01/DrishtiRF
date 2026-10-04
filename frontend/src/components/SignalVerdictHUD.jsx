@@ -53,6 +53,7 @@ export default function SignalVerdictHUD({ results, capture, job }) {
   // Overall Confidence %
   const overallPct = Math.round((conf.overall_confidence ?? 0.659) * 1000) / 10
   const tierLabel = conf.tier_code ? conf.tier_code.replace('_', ' ') : 'TIER A'
+  const overallColor = overallPct >= 75 ? '#5FD08A' : (overallPct >= 40 ? '#E8A33D' : '#F0605D')
 
   // Stage active states for 7-step progression
   const isDone = job?.status === 'COMPLETED' || Object.keys(results).length > 0
@@ -125,16 +126,16 @@ export default function SignalVerdictHUD({ results, capture, job }) {
               cy="55"
               r="44"
               fill="none"
-              stroke="#E8A33D"
+              stroke={overallColor}
               strokeWidth="9"
               strokeDasharray={`${(overallPct / 100) * 276.5} 276.5`}
               transform="rotate(-90 55 55)"
             />
-            <text x="55" y="60" fill="#fff" fontSize="19" fontFamily="IBM Plex Mono" textAnchor="middle" fontWeight="500">
+            <text x="55" y="60" fill={overallColor} fontSize="19" fontFamily="IBM Plex Mono" textAnchor="middle" fontWeight="500">
               {overallPct}%
             </text>
           </svg>
-          <div className="m" style={{ fontSize: '13.5px', color: '#E8A33D', letterSpacing: '.08em', fontWeight: 600 }}>
+          <div className="m" style={{ fontSize: '13.5px', color: overallColor, letterSpacing: '.08em', fontWeight: 600 }}>
             {tierLabel} · OVERALL
           </div>
         </div>

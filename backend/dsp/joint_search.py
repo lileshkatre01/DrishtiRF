@@ -119,10 +119,15 @@ def search_joint_deinterleave_fec(bits_input: Any, soft_symbols: Optional[np.nda
     byte_payload = np.packbits(best_payload) if len(best_payload) > 0 else np.array([], dtype=np.uint8)
     hex_payload = byte_payload[:64].tobytes().hex()
 
+    fec_status = "VERIFIED" if best_syndrome_zero else ("PARTIAL" if best_score > 0.50 else "UNRESOLVED")
+    evidence_level = "VERIFIED" if best_syndrome_zero else ("HYPOTHESIS" if best_score > 0.50 else "UNKNOWN")
+
     return {
         "best_interleaver": best_interleaver_name,
         "best_fec": best_fec_name,
         "syndrome_zero": best_syndrome_zero,
+        "fec_status": fec_status,
+        "evidence_level": evidence_level,
         "confidence": float(final_confidence),
         "payload_bit_count": len(best_payload),
         "payload_hex_preview": hex_payload,

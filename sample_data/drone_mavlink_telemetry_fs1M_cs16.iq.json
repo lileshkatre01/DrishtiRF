@@ -1,0 +1,8 @@
+{
+  "filename": "drone_mavlink_telemetry_fs1M_cs16.iq",
+  "sample_rate": 1000000.0,
+  "center_freq": 433000000.0,
+  "format": "cs16",
+  "adc_bits": 16,
+  "num_samples": 19008
+}

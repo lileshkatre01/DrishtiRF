@@ -154,6 +154,24 @@ def infer_format_and_params(
     if os.path.exists(meta_adjacent):
         return infer_format_and_params(meta_adjacent, format_override, sample_rate_override, center_freq_override)
 
+    # Check for adjacent .json sidecar metadata file
+    json_sidecar = file_path + ".json" if os.path.exists(file_path + ".json") else (os.path.splitext(file_path)[0] + ".json" if os.path.exists(os.path.splitext(file_path)[0] + ".json") else None)
+    if json_sidecar:
+        try:
+            with open(json_sidecar, 'r', encoding='utf-8') as jf:
+                j_meta = json.load(jf)
+            if "sample_rate" in j_meta and sample_rate_override is None:
+                sample_rate_override = float(j_meta["sample_rate"])
+            if "center_freq" in j_meta and center_freq_override is None:
+                center_freq_override = float(j_meta["center_freq"])
+            if "format" in j_meta and format_override is None:
+                format_override = str(j_meta["format"])
+            elif "adc_bits" in j_meta and format_override is None:
+                adc_bits = int(j_meta["adc_bits"])
+                format_override = "cs8" if adc_bits == 8 else ("cs16" if adc_bits == 16 else "cf32")
+        except Exception:
+            pass
+
     ext = os.path.splitext(file_path)[1].lower()
     filename = os.path.basename(file_path)
 

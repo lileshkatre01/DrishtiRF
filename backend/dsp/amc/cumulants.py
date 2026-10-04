@@ -78,8 +78,11 @@ def compute_instantaneous_features(samples: np.ndarray) -> Dict[str, float]:
     p_mean = np.mean(amp ** 2) + 1e-12
     papr_db = float(10.0 * np.log10(p_peak / p_mean))
 
+    raw_sigma_ap = float(np.std(norm_amp))
+
     return {
         "sigma_ap": sigma_ap,
+        "raw_sigma_ap": raw_sigma_ap,
         "sigma_dp": sigma_dp,
         "sigma_af": sigma_af,
         "median_diff_phase": median_diff_phase,
@@ -94,6 +97,7 @@ def extract_amc_features(samples: np.ndarray) -> Dict[str, float]:
         "C40_norm": cumulants["C40_norm"],
         "C42_norm": cumulants["C42_norm"],
         "sigma_ap": inst["sigma_ap"],
+        "raw_sigma_ap": inst["raw_sigma_ap"],
         "sigma_dp": inst["sigma_dp"],
         "sigma_af": inst["sigma_af"],
         "median_diff_phase": inst["median_diff_phase"],

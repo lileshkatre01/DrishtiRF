@@ -95,10 +95,12 @@ def compute_waterfall(
 def estimate_bandwidth(freqs: np.ndarray, psd_db: np.ndarray, noise_floor_db: float) -> Dict[str, float]:
     """
     Estimate signal bandwidth using -3 dB, -10 dB, and 99% power containment methods.
+    Applies FFT bin-resolution guards to prevent 0.0 Hz artifacts on single-carrier tones.
     """
     if len(psd_db) == 0:
         return {"bw_3db": 0.0, "bw_10db": 0.0, "bw_99pct": 0.0}
 
+    rbw = float(abs(freqs[1] - freqs[0])) if len(freqs) > 1 else 100.0
     peak_power_db = np.max(psd_db)
     
     # Threshold -3 dB and -10 dB relative to spectral peak
@@ -108,8 +110,12 @@ def estimate_bandwidth(freqs: np.ndarray, psd_db: np.ndarray, noise_floor_db: fl
     idx_3db = np.where(psd_db >= thresh_3db)[0]
     idx_10db = np.where(psd_db >= thresh_10db)[0]
 
-    bw_3db = float(freqs[idx_3db[-1]] - freqs[idx_3db[0]]) if len(idx_3db) > 1 else 0.0
-    bw_10db = float(freqs[idx_10db[-1]] - freqs[idx_10db[0]]) if len(idx_10db) > 1 else 0.0
+    bw_3db = float(freqs[idx_3db[-1]] - freqs[idx_3db[0]]) if len(idx_3db) > 1 else rbw
+    bw_10db = float(freqs[idx_10db[-1]] - freqs[idx_10db[0]]) if len(idx_10db) > 1 else 2.0 * rbw
+
+    # Ensure minimum resolution bandwidth guard
+    bw_3db = max(bw_3db, rbw)
+    bw_10db = max(bw_10db, bw_3db)
 
     # 99% Power Containment Bandwidth
     psd_linear = 10.0 ** (psd_db / 10.0)
@@ -123,10 +129,12 @@ def estimate_bandwidth(freqs: np.ndarray, psd_db: np.ndarray, noise_floor_db: fl
     else:
         bw_99pct = bw_10db
 
+    bw_99pct = max(bw_99pct, bw_10db)
+
     return {
-        "bw_3db": abs(bw_3db),
-        "bw_10db": abs(bw_10db),
-        "bw_99pct": abs(bw_99pct)
+        "bw_3db": round(abs(bw_3db), 1),
+        "bw_10db": round(abs(bw_10db), 1),
+        "bw_99pct": round(abs(bw_99pct), 1)
     }
 
 def estimate_center_frequency(iq: IQCapture, freqs: np.ndarray, psd_db: np.ndarray) -> Tuple[float, float]:
@@ -169,17 +177,20 @@ def estimate_center_frequency(iq: IQCapture, freqs: np.ndarray, psd_db: np.ndarr
 def estimate_snr(psd_db: np.ndarray, noise_floor_db: float, bw_hz: float, sample_rate: float) -> Tuple[float, float]:
     """
     Estimate Signal-to-Noise Ratio (SNR in dB).
-    Calculates ratio of total in-band power vs estimated noise floor.
+    Calculates ratio of total in-band peak vs noise floor with physical SDR dynamic-range clamping.
+    Clamps maximum reported SNR to 38.0 dB (realistic SDR front-end ceiling).
     """
     if len(psd_db) == 0:
         return 0.0, 0.0
 
     peak_power_db = float(np.max(psd_db))
-    snr_db = float(peak_power_db - noise_floor_db)
-    snr_db = max(0.0, snr_db)  # Clip negative SNR to 0 dB
+    raw_snr = float(peak_power_db - noise_floor_db)
+    
+    # Realistic physical SDR clamping: 0.0 dB to 38.0 dB (prevents unphysical 100 dB artifacts on noiseless files)
+    snr_db = min(38.0, max(0.0, raw_snr))
 
-    confidence = min(1.0, snr_db / 30.0) if snr_db > 0 else 0.2
-    return snr_db, confidence
+    confidence = min(0.98, max(0.15, snr_db / 25.0)) if snr_db > 0 else 0.15
+    return round(snr_db, 2), round(confidence, 2)
 
 def get_rf_band_label(center_freq_hz: float) -> str:
     """

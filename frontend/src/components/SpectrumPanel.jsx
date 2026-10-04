@@ -19,9 +19,9 @@ export default function SpectrumPanel({ spectrum, capture }) {
   const psd = spectrum.psd_db ?? []
   const wf = spectrum.waterfall ?? {}
 
-  // PSD Trace
+  // PSD Trace (pure float array for continuous frequency axis rendering)
   const psdTrace = {
-    x: freqs.map((f) => (f / 1e3).toFixed(2)),
+    x: freqs.map((f) => f / 1e3),
     y: psd,
     type: 'scatter',
     mode: 'lines',
@@ -31,22 +31,23 @@ export default function SpectrumPanel({ spectrum, capture }) {
     name: 'PSD (dB)',
   }
 
-  // Waterfall heatmap
-  const wfTrace = wf.grid
+  // Waterfall heatmap (numeric axes for continuous 2D STFT spectrogram rendering)
+  const wfTrace = (wf.grid && wf.grid.length > 0)
     ? {
         z: wf.grid,
-        x: (wf.frequencies ?? []).map((f) => (f / 1e3).toFixed(1)),
+        x: (wf.frequencies ?? []).map((f) => f / 1e3),
         y: wf.times ?? [],
         type: 'heatmap',
         colorscale: [
-          [0, '#07101A'],
-          [0.2, '#1D5E92'],
-          [0.5, '#2D9CDB'],
-          [0.8, '#5FD08A'],
-          [1, '#7DFFD4'],
+          [0.0, '#080D14'],
+          [0.2, '#0F3860'],
+          [0.4, '#0284C7'],
+          [0.65, '#22C55E'],
+          [0.85, '#FACC15'],
+          [1.0, '#FF4D4D'],
         ],
         showscale: false,
-        zsmooth: 'best',
+        zsmooth: 'fast',
       }
     : null
 
@@ -158,9 +159,9 @@ export default function SpectrumPanel({ spectrum, capture }) {
             <Plot
               data={[wfTrace]}
               layout={darkLayout({
-                plot_bgcolor: '#07101A',
+                plot_bgcolor: '#080D14',
                 xaxis: { ...darkLayout().xaxis, title: { text: 'Frequency (kHz)', standoff: 6 } },
-                yaxis: { ...darkLayout().yaxis, title: { text: 'Time (s)', standoff: 6 } },
+                yaxis: { ...darkLayout().yaxis, title: { text: 'Time (s)', standoff: 6 }, autorange: 'reversed' },
               })}
               config={plotConfig}
               style={{ width: '100%', height: '280px' }}

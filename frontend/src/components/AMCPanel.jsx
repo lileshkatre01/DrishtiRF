@@ -38,25 +38,37 @@ export default function AMCPanel({ result }) {
             </div>
             <div>
               <div className="k">Confidence</div>
-              <div className="m" style={{ fontSize: '22px', color: isLowConf ? '#F0605D' : '#5FD08A', fontWeight: 500, marginBottom: '3px' }}>
-                {(conf * 100).toFixed(1)}%
-              </div>
+              {(() => {
+                const confPct = conf * 100
+                const barColor = confPct >= 75 ? '#5FD08A' : (confPct >= 40 ? '#E8A33D' : '#F0605D')
+                return (
+                  <div className="m" style={{ fontSize: '22px', color: barColor, fontWeight: 600, marginBottom: '3px' }}>
+                    {confPct.toFixed(1)}%
+                  </div>
+                )
+              })()}
             </div>
           </div>
 
-          {/* 30-Segmented Confidence Bar */}
+          {/* 30-Segmented Multi-tier VU-Meter Confidence Bar */}
           <div style={{ display: 'flex', gap: '2px', margin: '12px 0' }}>
-            {Array.from({ length: 30 }).map((_, i) => (
-              <i
-                key={i}
-                style={{
-                  flex: 1,
-                  height: '14px',
-                  background: i < activeSegments ? (isLowConf ? '#F0605D' : '#5FD08A') : '#1C232B',
-                  borderRadius: '1px',
-                }}
-              />
-            ))}
+            {Array.from({ length: 30 }).map((_, i) => {
+              const pos = (i + 1) / 30
+              const segColor = pos <= 0.40 ? '#F0605D' : (pos <= 0.74 ? '#E8A33D' : '#5FD08A')
+              const isLit = i < activeSegments
+              return (
+                <i
+                  key={i}
+                  style={{
+                    flex: 1,
+                    height: '14px',
+                    background: isLit ? segColor : '#1C232B',
+                    borderRadius: '1px',
+                    boxShadow: isLit ? `0 0 5px ${segColor}88` : 'none',
+                  }}
+                />
+              )
+            })}
           </div>
 
           <div className="t" style={{ flex: 'none', width: '200px' }}>

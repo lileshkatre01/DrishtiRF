@@ -42,29 +42,35 @@ def normalize_power(iq: IQCapture, target_power: float = 1.0) -> IQCapture:
 def correct_iq_imbalance(iq: IQCapture) -> IQCapture:
     """
     Correct IQ amplitude and phase imbalance using Gram-Schmidt orthogonalization.
+    Guards against 1D signals (BPSK, AM) where Q energy is predominantly noise.
     """
-    if iq.num_samples == 0:
+    if iq.num_samples < 64:
         return iq
 
     i_data = np.real(iq.samples)
     q_data = np.imag(iq.samples)
 
-    # Estimate amplitude imbalance
-    p_i = np.mean(i_data ** 2)
-    p_q = np.mean(q_data ** 2)
+    p_i = float(np.mean(i_data ** 2))
+    p_q = float(np.mean(q_data ** 2))
     
-    if p_i <= 0 or p_q <= 0:
+    # If one channel is negligible (< 5% of other), signal is 1D (e.g. BPSK or real audio), skip imbalance correction
+    if p_i <= 1e-9 or p_q <= 1e-9 or (p_q < 0.05 * p_i) or (p_i < 0.05 * p_q):
         return iq
 
-    amp_scale = np.sqrt(p_i / p_q)
+    ratio = p_i / (p_q + 1e-12)
+    # Only correct if moderate imbalance exists (ratio between 0.33 and 3.0)
+    if ratio < 0.33 or ratio > 3.0:
+        return iq
+
+    amp_scale = np.sqrt(ratio)
     q_scaled = q_data * amp_scale
 
     # Estimate phase imbalance
-    sin_phi = np.mean(i_data * q_scaled) / p_i
-    if np.abs(sin_phi) >= 1.0:
+    sin_phi = float(np.mean(i_data * q_scaled) / (p_i + 1e-12))
+    if np.abs(sin_phi) >= 0.70:
         return iq
 
-    cos_phi = np.sqrt(1.0 - sin_phi ** 2)
+    cos_phi = np.sqrt(max(1e-6, 1.0 - sin_phi ** 2))
     q_corrected = (q_scaled - i_data * sin_phi) / cos_phi
 
     corrected_samples = (i_data + 1j * q_corrected).astype(np.complex64)

@@ -1,0 +1,6 @@
+{
+  "ground_truth_mod": "UNKNOWN / NOISE",
+  "format": "cf32",
+  "sample_rate": 1000000.0,
+  "expected_tier": "TIER_C"
+}

@@ -68,26 +68,38 @@ export default function JointSearchPanel({ result }) {
             </div>
           </div>
 
-          {/* 30-Segmented Confidence Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 0 6px' }}>
-            <span className="m k" style={{ width: '92px', textTransform: 'none' }}>Confidence</span>
-            <div style={{ display: 'flex', gap: '2px', flex: 1 }}>
-              {Array.from({ length: 30 }).map((_, i) => (
-                <i
-                  key={i}
-                  style={{
-                    flex: 1,
-                    height: '14px',
-                    background: i < activeSegments ? '#E8A33D' : '#1C232B',
-                    borderRadius: '1px',
-                  }}
-                />
-              ))}
-            </div>
-            <span className="m" style={{ width: '40px', textAlign: 'right', fontSize: '13px', color: '#E8A33D' }}>
-              {(conf * 100).toFixed(1)}%
-            </span>
-          </div>
+          {/* 30-Segmented Multi-tier VU-Meter Confidence Bar */}
+          {(() => {
+            const confPct = conf * 100
+            const barColor = confPct >= 75 ? '#5FD08A' : (confPct >= 40 ? '#E8A33D' : '#F0605D')
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 0 6px' }}>
+                <span className="m k" style={{ width: '92px', textTransform: 'none' }}>Confidence</span>
+                <div style={{ display: 'flex', gap: '2px', flex: 1 }}>
+                  {Array.from({ length: 30 }).map((_, i) => {
+                    const pos = (i + 1) / 30
+                    const segColor = pos <= 0.40 ? '#F0605D' : (pos <= 0.74 ? '#E8A33D' : '#5FD08A')
+                    const isLit = i < activeSegments
+                    return (
+                      <i
+                        key={i}
+                        style={{
+                          flex: 1,
+                          height: '14px',
+                          background: isLit ? segColor : '#1C232B',
+                          borderRadius: '1px',
+                          boxShadow: isLit ? `0 0 5px ${segColor}88` : 'none',
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+                <span className="m" style={{ width: '45px', textAlign: 'right', fontSize: '13px', color: barColor, fontWeight: 600 }}>
+                  {confPct.toFixed(1)}%
+                </span>
+              </div>
+            )
+          })()}
 
           {/* De-interleavers Searched Chips */}
           <div style={{ marginTop: '12px' }}>

@@ -1,0 +1,10 @@
+{
+  "ground_truth_mod": "2FSK",
+  "format": "cf32",
+  "sample_rate": 1000000.0,
+  "symbol_rate": 50000.0,
+  "payload_text": "DRISHTIRF-PKT#01",
+  "sync_word": "Barker-13",
+  "fec": "None",
+  "expected_tier": "TIER_A"
+}

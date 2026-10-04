@@ -16,9 +16,9 @@ export default function RequirementCoverageTable({ results, capture }) {
     <div className="sec" style={{ marginTop: '16px' }}>
       {/* Plaque Header */}
       <div className="pl">
-        <span className="num">NTRO</span>
-        <span className="ttl">Requirement coverage</span>
-        <span className="sb">PS-26147 · mapped to this run</span>
+        <span className="num">SPEC</span>
+        <span className="ttl">Pipeline capability & recovery matrix</span>
+        <span className="sb">6-stage autonomous demodulation engine · live run</span>
         <span className="lt">
           <i style={{ background: '#5FD08A', boxShadow: '0 0 7px #5FD08A' }}></i>
           6 / 6 MAPPED
@@ -37,10 +37,10 @@ export default function RequirementCoverageTable({ results, capture }) {
           borderBottom: '1px solid #2A333D',
         }}
       >
-        <span>REQ</span>
-        <span>Requirement</span>
-        <span>Scope</span>
-        <span>This run</span>
+        <span>SPEC</span>
+        <span>Stage Objective</span>
+        <span>Engine Scope</span>
+        <span>Recovered (This Run)</span>
       </div>
 
       {/* Row 1: Parameter Extraction */}

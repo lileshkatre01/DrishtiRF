@@ -88,15 +88,74 @@ def run_analysis_pipeline(job_id: str):
         db.commit()
 
         # 3. DEMOD Stage
+        is_analog = bool(amc_res.get("is_analog", False) or amc_res.get("family") == "ANALOG")
         mod_type = amc_res.get("modulation", "QPSK")
         sym_rate = amc_res.get("symbol_rate_baud", 100e3) or 100e3
-        demod_res = demodulate_signal(clean_iq, mod_type=mod_type, symbol_rate=sym_rate)
-        exp_demod = f"Demodulated {mod_type} stream into {demod_res['bit_count']} raw encoded bits."
+
+        if is_analog:
+            demod_res = {
+                "modulation": mod_type,
+                "bit_count": 0,
+                "bits": [],
+                "is_analog": True,
+                "constellation": {"I": [], "Q": []},
+                "explanation": f"Demodulated {mod_type} analog audio baseband signal. Digital bit slicing bypassed."
+            }
+            joint_res = {
+                "best_interleaver": "N/A (Analog Carrier)",
+                "best_fec": "N/A (Analog Carrier)",
+                "syndrome_zero": False,
+                "fec_status": "N/A",
+                "evidence_level": "N/A",
+                "confidence": 0.0,
+                "decoded_bits": [],
+                "explanation": "Analog transmission detected — digital FEC and de-interleaver search skipped."
+            }
+            corr_res = {
+                "sync_found": False,
+                "best_sync_word": "None",
+                "is_periodic": False,
+                "frame_count": 0,
+                "frames": [],
+                "evidence_level": "N/A",
+                "confidence": 0.0,
+                "explanation": "Analog transmission — packet framing and sync search not applicable."
+            }
+        else:
+            demod_res = demodulate_signal(clean_iq, mod_type=mod_type, symbol_rate=sym_rate)
+            raw_bits = demod_res.get("bits", [])
+            joint_res = search_joint_deinterleave_fec(raw_bits)
+            decoded_bits = joint_res.get("decoded_bits", [])
+            if len(decoded_bits) == 0:
+                decoded_bits = raw_bits
+            corr_res = correlate_bitstream(decoded_bits)
+
+            # Phase 12 Protocol Telemetry Decoding
+            parsed_frames = []
+            for f in corr_res.get("frames", []):
+                bit_str = f.get("bit_string", "")
+                sync_w = f.get("sync_word", "")
+                protocol_parsed = decode_protocol_payload(bit_str, sync_name=sync_w)
+                
+                f["protocol_telemetry"] = protocol_parsed
+                parsed_frames.append(f)
+                
+                db.add(Frame(
+                    job_id=job.id,
+                    offset=f["offset"],
+                    sync_word=f["sync_word"],
+                    header_hex=f["header_hex"],
+                    payload_hex=f["payload_hex"]
+                ))
+
+            corr_res["frames"] = parsed_frames
+
+        exp_demod = f"Demodulated {mod_type} stream into {demod_res['bit_count']} raw encoded bits." if not is_analog else demod_res["explanation"]
         db.add(StageResult(
             job_id=job.id,
             stage="DEMOD",
             json_result=demod_res,
-            confidence=0.95 if demod_res["bit_count"] > 0 else 0.0,
+            confidence=0.95 if demod_res["bit_count"] > 0 else (0.85 if is_analog else 0.0),
             explanation=exp_demod
         ))
         job.progress = 65.0
@@ -104,8 +163,6 @@ def run_analysis_pipeline(job_id: str):
         db.commit()
 
         # 4. JOINT SEARCH Stage
-        raw_bits = demod_res.get("bits", [])
-        joint_res = search_joint_deinterleave_fec(raw_bits)
         db.add(StageResult(
             job_id=job.id,
             stage="JOINT_SEARCH",
@@ -118,31 +175,6 @@ def run_analysis_pipeline(job_id: str):
         db.commit()
 
         # 5. CORRELATION & FRAMING Stage
-        decoded_bits = joint_res.get("decoded_bits", [])
-        if len(decoded_bits) == 0:
-            decoded_bits = raw_bits
-        corr_res = correlate_bitstream(decoded_bits)
-        
-        # Phase 12 Protocol Telemetry Decoding
-        parsed_frames = []
-        for f in corr_res.get("frames", []):
-            bit_str = f.get("bit_string", "")
-            sync_w = f.get("sync_word", "")
-            protocol_parsed = decode_protocol_payload(bit_str, sync_name=sync_w)
-            
-            f["protocol_telemetry"] = protocol_parsed
-            parsed_frames.append(f)
-            
-            db.add(Frame(
-                job_id=job.id,
-                offset=f["offset"],
-                sync_word=f["sync_word"],
-                header_hex=f["header_hex"],
-                payload_hex=f["payload_hex"]
-            ))
-
-        corr_res["frames"] = parsed_frames
-        
         db.add(StageResult(
             job_id=job.id,
             stage="CORRELATION",

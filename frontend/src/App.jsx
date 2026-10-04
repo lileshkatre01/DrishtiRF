@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import Navbar from './components/Navbar'
 import SignalVerdictHUD from './components/SignalVerdictHUD'
+import TargetBadgePanel from './components/TargetBadgePanel'
 import UploadZone from './components/UploadZone'
 import PipelineProgress from './components/PipelineProgress'
 import SpectrumPanel from './components/SpectrumPanel'
@@ -104,7 +105,17 @@ export default function App() {
 
       {/* Main Container - Full Width Responsive Layout */}
       <main style={{ padding: '0 20px 40px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-        {/* Section 00: Signal Verdict HUD */}
+        {/* Section 00A: Target Classification Badge (Aviation, Maritime, Drone, Satellite, Tactical RF) */}
+        {(results.CORRELATION || results.AMC) && (
+          <TargetBadgePanel
+            correlationResult={results.CORRELATION}
+            amcResult={results.AMC}
+            spectralResult={results.SPECTRAL}
+            capture={capture}
+          />
+        )}
+
+        {/* Section 00B: Signal Verdict HUD */}
         <SignalVerdictHUD results={results} capture={capture} job={job} />
 
 

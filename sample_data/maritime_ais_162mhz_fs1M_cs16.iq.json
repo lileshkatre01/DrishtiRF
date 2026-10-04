@@ -1,0 +1,8 @@
+{
+  "filename": "maritime_ais_162mhz_fs1M_cs16.iq",
+  "sample_rate": 1000000.0,
+  "center_freq": 162000000.0,
+  "format": "cs16",
+  "adc_bits": 16,
+  "num_samples": 31680
+}
