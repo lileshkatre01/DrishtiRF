@@ -6,8 +6,11 @@ export default function SignalVerdictHUD({ results, capture, job }) {
   const corr = results.CORRELATION?.json_result ?? {}
   const conf = results.CONFIDENCE_EVALUATION?.json_result ?? {}
 
+  const hasResults = Object.keys(results).length > 0
+  const isDone = job?.status === 'COMPLETED' || hasResults
+
   // 1. Modulation
-  const mod = amc.modulation ?? 'UNKNOWN'
+  const mod = amc.modulation ?? (hasResults ? 'UNKNOWN' : '—')
 
   // 2. Symbol Rate
   const symRateBaud = spectral.symbol_rate_baud || amc.symbol_rate_baud || 0
@@ -18,7 +21,7 @@ export default function SignalVerdictHUD({ results, capture, job }) {
   const fsStr = fsHz > 0 ? `${(fsHz / 1e6).toFixed(3)} MHz` : '—'
 
   // 4. Interleaver
-  let interleaverStr = 'None'
+  let interleaverStr = hasResults ? 'None' : '—'
   if (joint.best_interleaver) {
     if (joint.best_interleaver.toLowerCase().includes('conv')) {
       interleaverStr = 'Conv · d15 · s7'
@@ -32,7 +35,7 @@ export default function SignalVerdictHUD({ results, capture, job }) {
   }
 
   // 5. FEC
-  let fecStr = 'None'
+  let fecStr = hasResults ? 'None' : '—'
   if (joint.best_fec) {
     if (joint.best_fec.toLowerCase().includes('viterbi')) {
       fecStr = 'Viterbi · 1/2 · K=7'
@@ -46,17 +49,23 @@ export default function SignalVerdictHUD({ results, capture, job }) {
   }
 
   // 6. Sync / Frames
-  const syncWord = corr.best_sync_word || (corr.sync_found ? 'AX.25' : 'None')
-  const frameCount = corr.frame_count ?? (corr.frames ? corr.frames.length : 0)
-  const syncFramesStr = `${syncWord} · ${frameCount}`
+  let syncFramesStr = '—'
+  if (hasResults) {
+    const syncWord = corr.best_sync_word || (corr.sync_found ? 'AX.25' : 'None')
+    const frameCount = corr.frame_count ?? (corr.frames ? corr.frames.length : 0)
+    syncFramesStr = `${syncWord} · ${frameCount}`
+  }
 
   // Overall Confidence %
-  const overallPct = Math.round((conf.overall_confidence ?? 0.659) * 1000) / 10
-  const tierLabel = conf.tier_code ? conf.tier_code.replace('_', ' ') : 'TIER A'
-  const overallColor = overallPct >= 75 ? '#5FD08A' : (overallPct >= 40 ? '#E8A33D' : '#F0605D')
+  const overallPct = hasResults ? Math.round((conf.overall_confidence ?? 0.0) * 1000) / 10 : 0
+  const tierLabel = hasResults
+    ? (conf.tier_code ? conf.tier_code.replace('_', ' ') : 'TIER —')
+    : 'STANDBY'
+  const overallColor = hasResults
+    ? (overallPct >= 75 ? '#5FD08A' : (overallPct >= 40 ? '#E8A33D' : '#F0605D'))
+    : '#7D8A99'
 
   // Stage active states for 7-step progression
-  const isDone = job?.status === 'COMPLETED' || Object.keys(results).length > 0
   const dotColor = (stage) => {
     if (!results[stage]) return '#1C232B'
     if (stage === 'JOINT_SEARCH' && !results[stage].json_result?.syndrome_zero) return '#E8A33D'
@@ -71,8 +80,8 @@ export default function SignalVerdictHUD({ results, capture, job }) {
         <span className="ttl">Signal verdict</span>
         <span className="sb">blind analysis · file → bits → frames</span>
         <span className="lt">
-          <i style={{ background: '#5FD08A', boxShadow: '0 0 7px #5FD08A' }}></i>
-          COMPLETE
+          <i style={{ background: isDone ? '#5FD08A' : '#7D8A99', boxShadow: isDone ? '0 0 7px #5FD08A' : 'none' }}></i>
+          {isDone ? 'COMPLETE' : 'STANDBY'}
         </span>
       </div>
 

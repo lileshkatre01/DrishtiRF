@@ -33,7 +33,7 @@ export default function Navbar({ capture, job, phase, onReset }) {
     window.print()
   }
 
-  const fsMHz = capture?.sample_rate ? (capture.sample_rate / 1e6).toFixed(3) : '0.048'
+  const fsMHz = capture?.sample_rate ? (capture.sample_rate / 1e6).toFixed(3) : '—'
 
   return (
     <header style={{ height: '68px', display: 'flex', alignItems: 'center', gap: '16px', padding: '0 24px', background: '#0C121A', borderBottom: '1px solid #1E2836', color: '#fff' }}>
