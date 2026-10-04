@@ -2,9 +2,9 @@
 ; Builds DrishtiRF-Setup.exe with Start Menu shortcut, Desktop shortcut, and uninstaller.
 
 #define MyAppName "DrishtiRF"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "DrishtiRF Team"
-#define MyAppURL "https://drishtirf.com"
+#define MyAppURL "https://drishtirf.vercel.app"
 #define MyAppExeName "DrishtiRF.exe"
 
 [Setup]
@@ -22,6 +22,7 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
+SetupIconFile=DrishtiRF.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]

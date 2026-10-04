@@ -20,26 +20,6 @@ def find_free_port() -> int:
 def run_server(port: int):
     """Run uvicorn server serving FastAPI app and frontend static files"""
     from backend.main import app
-    from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import FileResponse
-
-    dist_dir = resource_path(os.path.join("frontend", "dist"))
-    
-    # Mount static frontend files if built frontend dist directory exists
-    if os.path.exists(dist_dir):
-        assets_dir = os.path.join(dist_dir, "assets")
-        if os.path.exists(assets_dir):
-            app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
-        
-        @app.get("/{catchall:path}")
-        async def serve_spa(catchall: str):
-            if catchall.startswith("api/") or catchall == "api" or catchall.startswith("ws"):
-                return None
-            file_path = os.path.join(dist_dir, catchall)
-            if os.path.isfile(file_path):
-                return FileResponse(file_path)
-            return FileResponse(os.path.join(dist_dir, "index.html"))
-
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
 
 def main():
