@@ -94,38 +94,47 @@ def compute_waterfall(
 
 def estimate_bandwidth(freqs: np.ndarray, psd_db: np.ndarray, noise_floor_db: float) -> Dict[str, float]:
     """
-    Estimate signal bandwidth using -3 dB, -10 dB, and 99% power containment methods.
-    Applies FFT bin-resolution guards to prevent 0.0 Hz artifacts on single-carrier tones.
+    Estimate signal bandwidth using contiguous main-lobe -3 dB, -10 dB, and 99% power containment.
+    Prevents edge noise spikes from corrupting occupied bandwidth metrics.
     """
     if len(psd_db) == 0:
         return {"bw_3db": 0.0, "bw_10db": 0.0, "bw_99pct": 0.0}
 
     rbw = float(abs(freqs[1] - freqs[0])) if len(freqs) > 1 else 100.0
-    peak_power_db = np.max(psd_db)
+    peak_idx = int(np.argmax(psd_db))
+    peak_power_db = float(psd_db[peak_idx])
     
-    # Threshold -3 dB and -10 dB relative to spectral peak
+    # Thresholds relative to spectral peak
     thresh_3db = peak_power_db - 3.0
     thresh_10db = peak_power_db - 10.0
 
-    idx_3db = np.where(psd_db >= thresh_3db)[0]
-    idx_10db = np.where(psd_db >= thresh_10db)[0]
+    # 1. Contiguous -3 dB Main Lobe Search around peak
+    l_3db = peak_idx
+    while l_3db > 0 and psd_db[l_3db - 1] >= thresh_3db:
+        l_3db -= 1
+    r_3db = peak_idx
+    while r_3db < len(psd_db) - 1 and psd_db[r_3db + 1] >= thresh_3db:
+        r_3db += 1
+    bw_3db = max(float(abs(freqs[r_3db] - freqs[l_3db])), rbw)
 
-    bw_3db = float(freqs[idx_3db[-1]] - freqs[idx_3db[0]]) if len(idx_3db) > 1 else rbw
-    bw_10db = float(freqs[idx_10db[-1]] - freqs[idx_10db[0]]) if len(idx_10db) > 1 else 2.0 * rbw
+    # 2. Contiguous -10 dB Main Lobe Search around peak
+    l_10db = peak_idx
+    while l_10db > 0 and psd_db[l_10db - 1] >= thresh_10db:
+        l_10db -= 1
+    r_10db = peak_idx
+    while r_10db < len(psd_db) - 1 and psd_db[r_10db + 1] >= thresh_10db:
+        r_10db += 1
+    bw_10db = max(float(abs(freqs[r_10db] - freqs[l_10db])), 2.0 * rbw, bw_3db)
 
-    # Ensure minimum resolution bandwidth guard
-    bw_3db = max(bw_3db, rbw)
-    bw_10db = max(bw_10db, bw_3db)
-
-    # 99% Power Containment Bandwidth
+    # 3. 99% Power Containment Bandwidth
     psd_linear = 10.0 ** (psd_db / 10.0)
     total_power = np.sum(psd_linear)
     if total_power > 0:
         cum_power = np.cumsum(psd_linear) / total_power
-        idx_lower = np.searchsorted(cum_power, 0.005)
-        idx_upper = np.searchsorted(cum_power, 0.995)
+        idx_lower = int(np.searchsorted(cum_power, 0.005))
+        idx_upper = int(np.searchsorted(cum_power, 0.995))
         idx_upper = min(idx_upper, len(freqs) - 1)
-        bw_99pct = float(freqs[idx_upper] - freqs[idx_lower])
+        bw_99pct = float(abs(freqs[idx_upper] - freqs[idx_lower]))
     else:
         bw_99pct = bw_10db
 

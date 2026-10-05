@@ -121,6 +121,47 @@ def read_sigmf(meta_path: str) -> IQCapture:
     iq.metadata["sigmf_global"] = global_meta
     return iq
 
+def parse_freq_or_rate_string(val_str: Optional[str]) -> Optional[float]:
+    """
+    Parses human-readable frequency and sample rate strings with unit suffixes:
+    - '1M', '1.0M', '1MHz', '1MSPS', '1MS/s', '1Msps' -> 1,000,000.0
+    - '2.4G', '2.4GHz', '2.4GSPS' -> 2,400,000,000.0
+    - '250k', '250kHz', '250ksps', '250kSPS', '250kS/s' -> 250,000.0
+    - '2000000', '2000000Hz' -> 2,000,000.0
+    - '1e6', '2.4e9', '250e3' -> 1,000,000.0
+    """
+    if not val_str:
+        return None
+    val_str = str(val_str).strip()
+    
+    # Check scientific notation e.g. 1e6, 2.4e9
+    try:
+        if 'e' in val_str.lower():
+            return float(val_str)
+    except ValueError:
+        pass
+    
+    m = re.match(r"^([\d\.]+)\s*([a-zA-Z/]*)$", val_str)
+    if not m:
+        return None
+    num_str, unit_str = m.group(1), m.group(2).lower()
+    try:
+        num = float(num_str)
+    except ValueError:
+        return None
+    
+    if 'g' in unit_str:
+        return num * 1e9
+    elif 'm' in unit_str:
+        return num * 1e6
+    elif 'k' in unit_str:
+        return num * 1e3
+    else:
+        # If no unit suffix and number is very small (< 100), it likely represents MHz in filename shorthand
+        if 0.1 <= num <= 200.0:
+            return num * 1e6
+        return num
+
 def infer_format_and_params(
     file_path: str,
     format_override: Optional[str] = None,
@@ -130,9 +171,10 @@ def infer_format_and_params(
     """
     Format Inference Engine:
     1. Check for SigMF metadata sidecar.
-    2. Match Filename pattern conventions (_fs2000000_cf915000000_cs16.iq).
-    3. User explicit override.
-    4. Blind statistical fallback (flat kurtosis evaluation).
+    2. Check for JSON metadata sidecar.
+    3. Match Filename pattern conventions with unit awareness (fs1M, fs2000000, 2MSPS, cf915M, cs16).
+    4. User explicit override.
+    5. Blind statistical fallback (flat kurtosis evaluation).
     
     Returns (inferred_format, sample_rate, center_freq, confidence_score)
     """
@@ -161,9 +203,9 @@ def infer_format_and_params(
             with open(json_sidecar, 'r', encoding='utf-8') as jf:
                 j_meta = json.load(jf)
             if "sample_rate" in j_meta and sample_rate_override is None:
-                sample_rate_override = float(j_meta["sample_rate"])
+                sample_rate_override = parse_freq_or_rate_string(str(j_meta["sample_rate"]))
             if "center_freq" in j_meta and center_freq_override is None:
-                center_freq_override = float(j_meta["center_freq"])
+                center_freq_override = parse_freq_or_rate_string(str(j_meta["center_freq"]))
             if "format" in j_meta and format_override is None:
                 format_override = str(j_meta["format"])
             elif "adc_bits" in j_meta and format_override is None:
@@ -175,23 +217,59 @@ def infer_format_and_params(
     ext = os.path.splitext(file_path)[1].lower()
     filename = os.path.basename(file_path)
 
-    # Default values
+    # Default values (Standard SDR baseline: 1.0 MHz)
     inferred_fmt = format_override or ("wav" if ext == ".wav" else "cs16")
     inferred_sr = sample_rate_override or 1000000.0
     inferred_cf = center_freq_override
 
-    # 2. Filename Pattern Regex Check e.g., _fs2000000_cf915000000_cs16
-    pattern = r"_fs(\d+(?:\.\d+)?)(?:_cf(\d+(?:\.\d+)?))?(?:_([a-z0-9]+))?"
-    match = re.search(pattern, filename, re.IGNORECASE)
-    if match:
-        if match.group(1) and sample_rate_override is None:
-            inferred_sr = float(match.group(1))
-        if match.group(2) and center_freq_override is None:
-            inferred_cf = float(match.group(2))
-        if match.group(3) and format_override is None:
-            fmt_cand = match.group(3).lower()
-            if fmt_cand in FORMAT_DTYPE_MAP:
-                inferred_fmt = fmt_cand
+    # 2. Filename Pattern Regex Check
+    sr_patterns = [
+        r"(?:[_\-\.]|^)(?:fs|sr|samprate|sample[_\-]?rate)[\-_]?([\d\.]+(?:[eE][\+\-]?\d+|[gGmMkK]?(?:hz|sps|s/s)?))",
+        r"(?:[_\-\.]|^)([\d\.]+[gGmMkK]?(?:sps|s/s))(?:[_\-\.]|$)",
+        r"(?:[_\-\.]|^)([\d\.]+[gGmMkK]?hz)(?:[_\-\.]|$)"
+    ]
+
+    cf_patterns = [
+        r"(?:[_\-\.]|^)(?:cf|fc|freq|center[_\-]?freq)[\-_]?([\d\.]+(?:[eE][\+\-]?\d+|[gGmMkK]?(?:hz)?))",
+        r"(?:[_\-\.]|^)([\d\.]+[gGmMkK]?hz)(?:[_\-\.]|$)"
+    ]
+
+    fmt_pattern = r"(?:[_\-\.]|^)(cs8|cu8|cs16|ci16|cf32|cs32|c8|u8|s8|c16|s16|f32|complex16|complex32|complex64)(?:[_\-\.]|$)"
+
+    # Extract Sample Rate from Filename
+    if sample_rate_override is None:
+        for pat in sr_patterns:
+            m = re.search(pat, filename, re.IGNORECASE)
+            if m:
+                val = parse_freq_or_rate_string(m.group(1))
+                if val and val > 10.0:
+                    inferred_sr = float(val)
+                    confidence = 0.98
+                    break
+
+    # Extract Center Frequency from Filename
+    if center_freq_override is None:
+        for pat in cf_patterns:
+            m = re.search(pat, filename, re.IGNORECASE)
+            if m:
+                val = parse_freq_or_rate_string(m.group(1))
+                if val and val > 10.0:
+                    inferred_cf = float(val)
+                    break
+
+    # Extract Format identifier from Filename
+    if format_override is None and ext != ".wav":
+        m_fmt = re.search(fmt_pattern, filename, re.IGNORECASE)
+        if m_fmt:
+            raw_fmt = m_fmt.group(1).lower()
+            alias_map = {
+                "ci16": "cs16", "c16": "cs16", "s16": "cs16", "complex16": "cs16",
+                "u8": "cu8", "cu8": "cu8",
+                "s8": "cs8", "c8": "cs8", "cs8": "cs8",
+                "f32": "cf32", "complex32": "cf32", "complex64": "cf32", "cf32": "cf32",
+                "cs32": "cs32"
+            }
+            inferred_fmt = alias_map.get(raw_fmt, "cs16")
 
     # 3. WAV extension
     if ext == ".wav":
@@ -203,7 +281,7 @@ def infer_format_and_params(
 
     # 5. Blind Statistical Fallback for raw IQ
     if ext in [".iq", ".raw", ".bin", ".dat"]:
-        best_fmt = "cs16"
+        best_fmt = inferred_fmt
         min_kurtosis_diff = float("inf")
 
         for fmt in ["cs16", "cs8", "cf32"]:
@@ -224,7 +302,12 @@ def infer_format_and_params(
                 pass
         
         inferred_fmt = best_fmt
-        confidence = 0.65  # Flagged as inferred statistical fallback
+        if confidence < 0.9:
+            confidence = 0.75  # Flagged as inferred statistical fallback
+
+    # Ensure inferred_sr is never unphysically small
+    if inferred_sr < 100.0:
+        inferred_sr = 1000000.0
 
     return inferred_fmt, inferred_sr, inferred_cf, confidence
 

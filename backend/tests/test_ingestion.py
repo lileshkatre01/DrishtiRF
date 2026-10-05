@@ -91,14 +91,32 @@ def test_read_sigmf_sidecar(tmp_path):
     assert iq.num_samples == 2
 
 def test_filename_inference(tmp_path):
-    test_file = os.path.join(tmp_path, "rec_fs2000000_cf915000000_cs16.iq")
-    with open(test_file, "wb") as f:
-        f.write(b"\x00" * 400)
+    # Standard format with raw digits
+    test_file1 = os.path.join(tmp_path, "rec_fs2000000_cf915000000_cs16.iq")
+    fmt1, sr1, cf1, conf1 = infer_format_and_params(test_file1)
+    assert fmt1 == "cs16"
+    assert sr1 == 2000000.0
+    assert cf1 == 915000000.0
 
-    fmt, sr, cf, conf = infer_format_and_params(test_file)
-    assert fmt == "cs16"
-    assert sr == 2000000.0
-    assert cf == 915000000.0
+    # NOAA Satellite format with fs1M
+    test_file2 = os.path.join(tmp_path, "satellite_noaa_apt_fs1M_cs16.iq")
+    fmt2, sr2, cf2, conf2 = infer_format_and_params(test_file2)
+    assert fmt2 == "cs16"
+    assert sr2 == 1000000.0
+
+    # Multi-unit with 2.4M and 1090M
+    test_file3 = os.path.join(tmp_path, "capture_fs2.4M_cf1090M_cf32.iq")
+    fmt3, sr3, cf3, conf3 = infer_format_and_params(test_file3)
+    assert fmt3 == "cf32"
+    assert sr3 == 2400000.0
+    assert cf3 == 1090000000.0
+
+    # Kilo unit with fs250k
+    test_file4 = os.path.join(tmp_path, "p25_fs250k_cf850M_cs16.raw")
+    fmt4, sr4, cf4, conf4 = infer_format_and_params(test_file4)
+    assert fmt4 == "cs16"
+    assert sr4 == 250000.0
+    assert cf4 == 850000000.0
 
 def test_upload_api_endpoint(tmp_path):
     # Create test raw IQ file

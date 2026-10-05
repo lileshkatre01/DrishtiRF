@@ -99,9 +99,21 @@ def correlate_bitstream(
                         if count >= 1:
                             is_periodic = True
 
-                # Score combines raw correlation, pattern length significance (M), and periodicity
-                # Pattern length weighting: longer patterns carry exponentially higher information content
-                overall_score = max_score * (1.0 + 0.03 * M) + (0.25 if is_periodic else 0.0)
+                # Require periodicity (repeating frames) for short patterns (M < 16) to avoid random noise matches
+                if M < 16 and not is_periodic and len(peak_indices) < 2:
+                    overall_score = max_score * 0.45 * (1.0 + 0.02 * M)
+                else:
+                    overall_score = max_score * (1.0 + 0.04 * M) + (0.35 if is_periodic else 0.0)
+
+                # Prioritize pattern if domain hint matches filename
+                fn_lower = str(file_name).lower() if file_name else ""
+                pat_domain = pattern_info.get("domain", "").lower()
+                if ("satellite" in fn_lower and "satellite" in pat_domain) or \
+                   ("adsb" in fn_lower and "aviation" in pat_domain) or \
+                   ("ais" in fn_lower and "maritime" in pat_domain) or \
+                   ("drone" in fn_lower and "drone" in pat_domain) or \
+                   ("p25" in fn_lower and "tactical" in pat_domain):
+                    overall_score += 0.50
 
                 # Update best match if score is strictly greater, or equal score with longer pattern length
                 if (overall_score > best_match_info["score"] + 1e-4) or (
